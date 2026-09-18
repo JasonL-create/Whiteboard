@@ -1,13 +1,13 @@
-# Whiteboard v10 — Property-first Keys prototype
+# Whiteboard v11
+Corrected Keys redesign built from the working v8 base.
 
-This revision rebuilds the Keys area around the physical key tag/property record.
+- Main Keys list contains property key tags only; lockboxes are attached to properties.
+- LB OUT and KEYS OUT counts.
+- Expanded property actions: Key Checked Out, Key Returned, LB Checked Out, LB Returned.
+- Available lockbox dropdown; assigned boxes are disabled.
+- Lockbox inventory manager.
+- Permanent key/lockbox movement history.
+- Missing/found and edit actions under More.
+- Keys & Access summary appears in active Turn/Listing details.
 
-- Key Tag # is always the first column, then Property.
-- Lockboxes no longer appear as separate main rows; they attach to a property key record.
-- Top operational counts emphasize LB OUT and KEYS OUT.
-- Expanded key records support dated Key Checked Out / Key Returned and LB Checked Out / LB Returned actions.
-- Available lockboxes are chosen from a dropdown; unavailable boxes remain visible but disabled.
-- History combines key and currently assigned lockbox movement records.
-- More menu includes Key Missing, LB Missing, and Edit Key Tag / Property.
-- Lockbox Inventory is a simple numbered pool with numbers 1–50 available to add.
-- Existing localStorage inventory is retained/migrated by the UI rather than erased.
+Replace all three files: index.html, app.js, styles.css.
