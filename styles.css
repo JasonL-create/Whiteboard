@@ -28,3 +28,14 @@
 @media(max-width:850px){.brand img{width:42px;height:42px}}
 
 .access-group{margin-top:14px;padding-top:14px;border-top:2px solid #c8d1d7}
+
+/* v20: simplified brand + Keys section header/tool row */
+.topbar{align-items:center}
+.brand{min-height:48px}
+.keys-section-title{font-size:24px;font-weight:750;margin:10px 0 10px}
+.keys-toolbar{display:flex;align-items:center;gap:10px;margin:0 0 12px}
+.keys-toolbar .spacer{flex:1}
+.keys-summary{display:flex;gap:8px}
+.keys-summary .filter-btn{font-weight:400}
+.keys-summary .filter-btn b{font-weight:800}
+@media(max-width:850px){.keys-toolbar{flex-wrap:wrap}.keys-toolbar .spacer{display:none;width:100%}.keys-summary{width:100%}}
