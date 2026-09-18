@@ -1,2 +1,6 @@
-# Whiteboard v21
-Rebuilds navigation as a fixed three-row website-style application shell: logo row, permanent master navigation, and contextual controls. Dropdown menus overlay scrolling cards. Whiteboard includes Turn/Listing filters and sorting; Keys includes out counts, lockbox inventory dropdown, and Add Key Tag.
+Whiteboard v20
+
+- Header now uses the logo only; Whiteboard title/subtitle removed.
+- Keys is the section heading beneath the main navigation.
+- LB OUT / KEYS OUT share one toolbar row with Lockbox Inventory / Add Key Tag.
+- Summary buttons match the other filter buttons, with only counts bold.

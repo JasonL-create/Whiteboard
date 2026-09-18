@@ -4,15 +4,15 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Whiteboard</title>
-<link rel="stylesheet" href="styles.css?v=21" />
+<link rel="stylesheet" href="styles.css?v=20" />
 </head>
 <body>
 <div class="app-shell">
-<div class="fixed-shell">
-<header class="brand-row"><div class="brand"><img src="wb-logo-v15.png" alt="Whiteboard logo"></div></header>
-<nav class="master-nav" id="masterNav"></nav>
-<div class="context-nav" id="contextNav"></div>
-</div>
+<header class="topbar">
+  <div class="brand"><img src="wb-logo-v15.png" alt="Whiteboard logo"></div>
+  <div class="top-actions"><input id="search" type="search" placeholder="Search property…"><button id="newProcess" class="primary">+ Start New Process</button></div>
+</header>
+<nav class="filters" id="filters"></nav>
 <main class="board">
   <div class="board-head"><div>PROPERTY</div><div>TYPE</div><div>STATUS</div><div></div></div>
   <div id="rows"></div>
@@ -30,5 +30,5 @@
   </form>
  </div>
 </div>
-<script src="app.js?v=21"></script>
+<script src="app.js?v=20"></script>
 </body></html>

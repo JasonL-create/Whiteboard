@@ -39,18 +39,3 @@
 .keys-summary .filter-btn{font-weight:400}
 .keys-summary .filter-btn b{font-weight:800}
 @media(max-width:850px){.keys-toolbar{flex-wrap:wrap}.keys-toolbar .spacer{display:none;width:100%}.keys-summary{width:100%}}
-
-/* v21: fixed three-row application shell */
-.app-shell{max-width:1420px;margin:auto;padding:0 28px 60px}
-.fixed-shell{position:sticky;top:0;z-index:100;background:var(--bg);padding-top:12px}
-.brand-row{height:58px;display:flex;align-items:center;border-bottom:1px solid var(--line)}
-.brand-row .brand img{width:44px;height:44px}
-.master-nav,.context-nav{height:58px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line);position:relative;background:var(--bg)}
-.master-nav{justify-content:space-between}.master-left,.context-left,.context-right{display:flex;align-items:center;gap:8px}.context-right{margin-left:auto}
-.nav-btn{background:#fff;border:1px solid var(--line);border-radius:7px;padding:9px 13px;cursor:pointer;font-weight:500}.nav-btn b,.filter-btn b{font-weight:800}.nav-btn.selected{background:var(--accent-soft);border-color:var(--accent)}.primary-nav{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
-.nav-dropdown{position:relative}.dropdown-panel{display:none;position:absolute;top:calc(100% + 5px);left:0;min-width:185px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:5px;box-shadow:0 12px 30px rgba(32,38,42,.16);z-index:250}.nav-dropdown:hover>.dropdown-panel:not(.search-panel),.dropdown-panel.show{display:grid}.dropdown-panel button{border:0;background:#fff;text-align:left;padding:9px 10px;border-radius:6px;cursor:pointer;white-space:nowrap}.dropdown-panel button:hover:not(:disabled){background:var(--soft)}.dropdown-panel button:disabled{color:var(--muted)}
-.search-panel{padding:8px;min-width:285px}.search-panel input{width:270px!important}
-.lb-panel{right:0;left:auto;max-height:320px;overflow:auto;min-width:155px}
-.context-nav .filter-btn{font-weight:500}.board{padding-top:14px}.board-head{padding-top:0}
-#rows{position:relative;z-index:1}
-@media(max-width:850px){.app-shell{padding:0 14px 40px}.fixed-shell{padding-top:8px}.brand-row{height:50px}.master-nav,.context-nav{height:auto;min-height:54px;flex-wrap:wrap;padding:8px 0}.master-left{flex-wrap:wrap}.context-left{flex-wrap:wrap}.nav-btn,.filter-btn{padding:8px 10px}.search-panel{left:auto;right:0}.board{padding-top:10px}}
