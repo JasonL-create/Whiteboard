@@ -1,7 +1,13 @@
-# Whiteboard v9 — Keys & Lockboxes prototype
+# Whiteboard v10 — Property-first Keys prototype
 
-Adds a Keys button inside Whiteboard with a shared key/lockbox inventory, current status, search, movement history, vendor checkout/return, missing/found status, and reusable lockbox assignments.
+This revision rebuilds the Keys area around the physical key tag/property record.
 
-Turn and Listing cards now include a Keys & Access section. Available lockboxes can be assigned from a dropdown; unavailable boxes remain visible but disabled. Assigning or picking up a lockbox from a process card updates the same inventory/history used by the Keys screen.
-
-Prototype data is stored in browser localStorage, like the existing Whiteboard data.
+- Key Tag # is always the first column, then Property.
+- Lockboxes no longer appear as separate main rows; they attach to a property key record.
+- Top operational counts emphasize LB OUT and KEYS OUT.
+- Expanded key records support dated Key Checked Out / Key Returned and LB Checked Out / LB Returned actions.
+- Available lockboxes are chosen from a dropdown; unavailable boxes remain visible but disabled.
+- History combines key and currently assigned lockbox movement records.
+- More menu includes Key Missing, LB Missing, and Edit Key Tag / Property.
+- Lockbox Inventory is a simple numbered pool with numbers 1–50 available to add.
+- Existing localStorage inventory is retained/migrated by the UI rather than erased.

@@ -19,7 +19,7 @@
   <div id="rows"></div>
 </main>
 <main class="keys-board hidden" id="keysBoard">
-  <div class="keys-head"><div><h2>Keys & Lockboxes</h2><p>Current inventory and movement history.</p></div><button id="addInventory" class="primary">+ Add Inventory</button></div>
+  <div class="keys-head"><div><h2>Keys</h2><p>Property key tags, checkouts, lockbox assignments and history.</p></div><div class="keys-head-actions"><button id="manageLockboxes" class="action-secondary">Lockbox Inventory</button><button id="addInventory" class="primary">+ Add Key Tag</button></div></div>
   <div id="keyRows"></div>
 </main>
 </div>
@@ -37,14 +37,21 @@
 </div>
 <div id="inventoryModal" class="modal hidden" role="dialog" aria-modal="true">
  <div class="modal-card">
-  <div class="modal-head"><div><h2>Add Inventory</h2><p>Add a property key tag or reusable lockbox.</p></div><button id="closeInventoryModal" class="icon-btn">×</button></div>
+  <div class="modal-head"><div><h2>Add Key Tag</h2><p>Add a numbered property key record.</p></div><button id="closeInventoryModal" class="icon-btn">×</button></div>
   <form id="inventoryForm">
-   <label>Inventory Type<select id="inventoryType"><option value="key">Property Key Tag</option><option value="lockbox">Lockbox</option></select></label>
-   <label>Number<input id="inventoryNumber" required placeholder="42"></label>
-   <label id="inventoryPropertyWrap">Property Address<input id="inventoryProperty" placeholder="842 E 9th"></label>
+   <input id="inventoryType" type="hidden" value="key">
+   <label>Key Tag #<input id="inventoryNumber" required placeholder="42"></label>
+   <label id="inventoryPropertyWrap">Property Address<input id="inventoryProperty" required placeholder="842 E 9th"></label>
    <label>Notes<textarea id="inventoryNotes" placeholder="Optional notes…"></textarea></label>
    <div class="modal-actions"><button type="button" id="cancelInventoryModal">Cancel</button><button type="submit" class="primary">Add Inventory</button></div>
   </form>
+ </div>
+</div>
+<div id="lockboxModal" class="modal hidden" role="dialog" aria-modal="true">
+ <div class="modal-card">
+  <div class="modal-head"><div><h2>Lockbox Inventory</h2><p>Add numbered lockboxes to the reusable pool.</p></div><button id="closeLockboxModal" class="icon-btn">×</button></div>
+  <div class="lb-inventory-add"><label>Add Lockbox #<select id="lockboxNumber"></select></label><button id="addLockbox" class="primary">Add Lockbox</button></div>
+  <div id="lockboxInventoryList" class="lb-inventory-list"></div>
  </div>
 </div>
 <script src="app.js"></script>
