@@ -101,6 +101,29 @@ function logKey(k,event,detail,date=TODAY){k.history=k.history||[];k.history.uns
 function renderKeyNav(){const out=keys.filter(k=>k.keyOut||k.keyMissing).length,lbOut=keys.filter(k=>k.lb).length;return `<div class="keys-section-title">Keys</div><div class="keys-toolbar"><div class="keys-summary"><button class="filter-btn">LB OUT <b>${lbOut}</b></button><button class="filter-btn">KEYS OUT <b>${out}</b></button></div><div class="spacer"></div><button id="lbInventory" class="action-secondary">Lockbox Inventory</button><button id="addKeyTag" class="primary">+ Add Key Tag</button></div>`}
 function processSearchText(x){return [x.address,x.type,x.notes,x.price,x.securityDeposit,...(x.process||[]).flatMap(p=>[p.name,p.value,p.note])].filter(Boolean).join(' ').toLowerCase()}
 function keySearchText(k){return [k.tag,k.address,k.lb?.number,k.keyOut?.to,k.keyMissing?'key missing':'',k.lbMissing?'lb missing':'',...(k.history||[]).flatMap(h=>[h.date,h.event,h.detail])].filter(Boolean).join(' ').toLowerCase()}
+function highlightSearchMatches(root,q){
+ if(!root||!q)return;
+ const escaped=q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+ const re=new RegExp(`(${escaped})`,'gi');
+ const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
+ const nodes=[];
+ while(walker.nextNode()){
+   const n=walker.currentNode,p=n.parentElement;
+   if(!p||p.closest('mark.search-highlight')||['SCRIPT','STYLE','TEXTAREA','OPTION'].includes(p.tagName))continue;
+   if(n.nodeValue&&n.nodeValue.toLowerCase().includes(q.toLowerCase()))nodes.push(n);
+ }
+ nodes.forEach(n=>{
+   const parts=n.nodeValue.split(re);
+   if(parts.length<2)return;
+   const frag=document.createDocumentFragment();
+   parts.forEach(part=>{
+     if(part.toLowerCase()===q.toLowerCase()){
+       const mark=document.createElement('mark');mark.className='search-highlight';mark.textContent=part;frag.appendChild(mark);
+     }else frag.appendChild(document.createTextNode(part));
+   });
+   n.replaceWith(frag);
+ });
+}
 function renderUniversalSearch(q){
  $('.board-head').style.display='none';
  const processMatches=data.filter(x=>processSearchText(x).includes(q));
@@ -108,6 +131,7 @@ function renderUniversalSearch(q){
  const processHTML=processMatches.map(x=>`<section class="row ${x.archived?'archived':''} ${openId===x.id?'open':''}" data-id="${x.id}"><div class="row-main"><div class="property">${x.address}</div><div class="type ${x.type==='listing'?'listing':''}">${x.type.toUpperCase()}</div><div class="status">${statusHTML(x)}</div>${x.archived?'<div class="archive-pill">ARCHIVED</div>':'<div class="chev">›</div>'}</div>${openId===x.id?detailsHTML(x):''}</section>`).join('');
  const keyHTML=keyMatches.map(keyRowHTML).join('');
  rows.innerHTML=(processHTML||keyHTML)?`${processHTML}${keyHTML}`:'<div class="empty">No results found.</div>';
+ highlightSearchMatches(rows,q);
  bindBoardRows();
  rows.querySelectorAll('.key-main').forEach(e=>e.onclick=()=>{keyOpenId=keyOpenId===e.parentElement.dataset.kid?null:e.parentElement.dataset.kid;renderRowsOnly()});
  bindKeyActions();

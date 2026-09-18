@@ -71,3 +71,6 @@
 
 /* v25 missing status emphasis */
 .missing-status,.missing-status strong{color:var(--danger)!important;font-weight:800!important}
+
+/* v28 universal search match highlighting */
+.search-highlight{background:#ffe88a;color:inherit;border-radius:2px;padding:0 1px;font-weight:inherit}

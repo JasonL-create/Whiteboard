@@ -1,1 +1,1 @@
-Whiteboard v27 — universal search across Whiteboard processes, archived records, key tags, lockboxes, notes, workflow fields, and key history.
+Whiteboard v28 — adds live highlighting of matching text throughout universal search results.
