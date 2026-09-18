@@ -1,1 +1,1 @@
-Whiteboard v26 — fixes search input focus so typing filters results without rebuilding the header after every keystroke.
+Whiteboard v27 — universal search across Whiteboard processes, archived records, key tags, lockboxes, notes, workflow fields, and key history.

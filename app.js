@@ -36,8 +36,11 @@ function counts(){const active=activeData(),c=s=>active.filter(x=>state(x)===s).
 function searchValue(){return ($('#shellSearch')?.value||$('#search')?.value||'').trim()}
 function setSearchValue(v){let hidden=$('#search');if(!hidden){hidden=document.createElement('input');hidden.id='search';hidden.type='hidden';document.body.appendChild(hidden)}hidden.value=v}
 function renderRowsOnly(){
+ const q=(($('#search')?.value)||'').trim().toLowerCase();
+ if(q){renderUniversalSearch(q);return;}
  if(view==='keys'){renderKeyRowsOnly();return;}
- const q=(($('#search')?.value)||'').trim().toLowerCase();let list=data.filter(x=>{const matches=!q||x.address.toLowerCase().includes(q);if(!matches)return false;if(q)return true;if(filter==='turns')return !x.archived&&x.type==='turn';if(filter==='listings')return !x.archived&&x.type==='listing';return filter==='archived'?x.archived:!x.archived&&(filter==='all'||state(x)===filter)});
+ $('.board-head').style.display='grid';
+ let list=data.filter(x=>{if(filter==='turns')return !x.archived&&x.type==='turn';if(filter==='listings')return !x.archived&&x.type==='listing';return filter==='archived'?x.archived:!x.archived&&(filter==='all'||state(x)===filter)});
  if(sortMode==='move')list.sort((a,b)=>(get(a,'Move Out')||'9999').localeCompare(get(b,'Move Out')||'9999'));if(sortMode==='keys')list.sort((a,b)=>(get(a,'Keys Returned')||'9999').localeCompare(get(b,'Keys Returned')||'9999'));if(sortMode==='31')list.sort((a,b)=>turnDays(b)-turnDays(a));if(sortMode==='listing')list.sort((a,b)=>listingDays(b)-listingDays(a));
  rows.innerHTML=list.length?list.map(x=>`<section class="row ${x.archived?'archived':''} ${openId===x.id?'open':''}" data-id="${x.id}"><div class="row-main"><div class="property">${x.address}</div><div class="type ${x.type==='listing'?'listing':''}">${x.type.toUpperCase()}</div><div class="status">${statusHTML(x)}</div>${x.archived?'<div class="archive-pill">ARCHIVED</div>':'<div class="chev">›</div>'}</div>${openId===x.id?detailsHTML(x):''}</section>`).join(''):`<div class="empty">No processes in this view.</div>`;
  bindBoardRows();
@@ -96,6 +99,19 @@ function usedLBs(){return new Set(keys.filter(k=>k.lb).map(k=>String(k.lb.number
 function availableLBOptions(current=''){const used=usedLBs();return lbInventory.slice().sort((a,b)=>+a-+b).map(n=>`<option value="${n}" ${String(current)===String(n)?'selected':''} ${used.has(String(n))&&String(current)!==String(n)?'disabled':''}>LB #${n}${used.has(String(n))&&String(current)!==String(n)?' — checked out':''}</option>`).join('')}
 function logKey(k,event,detail,date=TODAY){k.history=k.history||[];k.history.unshift({date,event,detail})}
 function renderKeyNav(){const out=keys.filter(k=>k.keyOut||k.keyMissing).length,lbOut=keys.filter(k=>k.lb).length;return `<div class="keys-section-title">Keys</div><div class="keys-toolbar"><div class="keys-summary"><button class="filter-btn">LB OUT <b>${lbOut}</b></button><button class="filter-btn">KEYS OUT <b>${out}</b></button></div><div class="spacer"></div><button id="lbInventory" class="action-secondary">Lockbox Inventory</button><button id="addKeyTag" class="primary">+ Add Key Tag</button></div>`}
+function processSearchText(x){return [x.address,x.type,x.notes,x.price,x.securityDeposit,...(x.process||[]).flatMap(p=>[p.name,p.value,p.note])].filter(Boolean).join(' ').toLowerCase()}
+function keySearchText(k){return [k.tag,k.address,k.lb?.number,k.keyOut?.to,k.keyMissing?'key missing':'',k.lbMissing?'lb missing':'',...(k.history||[]).flatMap(h=>[h.date,h.event,h.detail])].filter(Boolean).join(' ').toLowerCase()}
+function renderUniversalSearch(q){
+ $('.board-head').style.display='none';
+ const processMatches=data.filter(x=>processSearchText(x).includes(q));
+ const keyMatches=keys.filter(k=>keySearchText(k).includes(q));
+ const processHTML=processMatches.map(x=>`<section class="row ${x.archived?'archived':''} ${openId===x.id?'open':''}" data-id="${x.id}"><div class="row-main"><div class="property">${x.address}</div><div class="type ${x.type==='listing'?'listing':''}">${x.type.toUpperCase()}</div><div class="status">${statusHTML(x)}</div>${x.archived?'<div class="archive-pill">ARCHIVED</div>':'<div class="chev">›</div>'}</div>${openId===x.id?detailsHTML(x):''}</section>`).join('');
+ const keyHTML=keyMatches.map(keyRowHTML).join('');
+ rows.innerHTML=(processHTML||keyHTML)?`${processHTML}${keyHTML}`:'<div class="empty">No results found.</div>';
+ bindBoardRows();
+ rows.querySelectorAll('.key-main').forEach(e=>e.onclick=()=>{keyOpenId=keyOpenId===e.parentElement.dataset.kid?null:e.parentElement.dataset.kid;renderRowsOnly()});
+ bindKeyActions();
+}
 function renderKeyRowsOnly(){const q=(($('#search')?.value)||'').trim().toLowerCase();let list=keys.filter(k=>!q||[k.tag,k.address,k.lb?.number,k.keyOut?.to,...(k.history||[]).map(h=>h.detail)].filter(Boolean).join(' ').toLowerCase().includes(q));if(keyFilter==='lb')list=list.filter(k=>k.lb);if(keyFilter==='keys')list=list.filter(k=>k.keyOut||k.keyMissing);list=list.slice().sort((a,b)=>keySort==='address'?a.address.localeCompare(b.address,undefined,{numeric:true,sensitivity:'base'}):String(a.tag).localeCompare(String(b.tag),undefined,{numeric:true}));rows.innerHTML=list.length?list.map(keyRowHTML).join(''):'<div class="empty">No key tags found.</div>';rows.querySelectorAll('.key-main').forEach(e=>e.onclick=()=>{keyOpenId=keyOpenId===e.parentElement.dataset.kid?null:e.parentElement.dataset.kid;renderKeys()});bindKeyActions()}
 function renderKeys(){view='keys';renderShell();$('.board-head').style.display='none';renderKeyRowsOnly()}
 function keyRowHTML(k){const keyStatus=k.keyMissing?'KEY MISSING':k.keyOut?`Out to ${k.keyOut.to}`:'In Office';const lbStatus=k.lbMissing?'LB MISSING':k.lb?`LB #${k.lb.number} · At Property`:'No LB assigned';return `<section class="key-row" data-kid="${k.id}"><div class="key-main"><div><span class="key-sub">TAG</span> <span class="key-tag">#${k.tag}</span></div><div><div class="key-address">${k.address}</div><div class="key-sub">PROPERTY KEY</div></div><div class="key-state ${k.keyMissing?'missing-status':''}"><strong>${keyStatus}</strong>${k.keyOut&&!k.keyMissing?k.keyOut.date:k.keyMissing?'':'Key Box'}</div><div class="key-state key-lb ${k.lbMissing?'missing-status':''}">${lbStatus}</div><div>›</div></div>${keyOpenId===k.id?keyDetailsHTML(k):''}</section>`}
