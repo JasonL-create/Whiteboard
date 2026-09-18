@@ -1,6 +1,3 @@
-Whiteboard v20
+Whiteboard v22
 
-- Header now uses the logo only; Whiteboard title/subtitle removed.
-- Keys is the section heading beneath the main navigation.
-- LB OUT / KEYS OUT share one toolbar row with Lockbox Inventory / Add Key Tag.
-- Summary buttons match the other filter buttons, with only counts bold.
+Rebuilt from the v21 shell with the startup crash fixed. The new three-row fixed website-style header now initializes without referencing the removed legacy Start New button.
