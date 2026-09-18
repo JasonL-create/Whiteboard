@@ -68,3 +68,6 @@
 .lb-inventory-item{display:flex!important;justify-content:space-between;gap:18px;align-items:center;color:var(--text)!important;opacity:1!important}
 .lb-inventory-item small{font-size:10px;color:var(--muted);font-weight:700}
 @media(max-width:850px){.shell-search{width:min(240px,100%)}}
+
+/* v25 missing status emphasis */
+.missing-status,.missing-status strong{color:var(--danger)!important;font-weight:800!important}
