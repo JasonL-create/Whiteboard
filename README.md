@@ -1,9 +1,7 @@
-# Whiteboard prototype v8
+# Whiteboard v9 — Keys & Lockboxes prototype
 
-Changes in v8:
-- LISTING type label is blue.
-- PENDING lease status is orange with normal font weight.
-- RENTED lease status is bold green.
-- Clicking the currently selected quick-filter pill a second time returns the board to ALL.
+Adds a Keys button inside Whiteboard with a shared key/lockbox inventory, current status, search, movement history, vendor checkout/return, missing/found status, and reusable lockbox assignments.
 
-For this update, replace `app.js` and `styles.css`. `index.html` is unchanged from v7.
+Turn and Listing cards now include a Keys & Access section. Available lockboxes can be assigned from a dropdown; unavailable boxes remain visible but disabled. Assigning or picking up a lockbox from a process card updates the same inventory/history used by the Keys screen.
+
+Prototype data is stored in browser localStorage, like the existing Whiteboard data.

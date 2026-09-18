@@ -13,9 +13,14 @@
   <div class="top-actions"><input id="search" type="search" placeholder="Search property…"><button id="newProcess" class="primary">+ Start New Process</button></div>
 </header>
 <nav class="filters" id="filters"></nav>
-<main class="board">
+<nav id="keyFilters" class="filters key-filters hidden"></nav>
+<main class="board" id="processBoard">
   <div class="board-head"><div>PROPERTY</div><div>TYPE</div><div>STATUS</div><div></div></div>
   <div id="rows"></div>
+</main>
+<main class="keys-board hidden" id="keysBoard">
+  <div class="keys-head"><div><h2>Keys & Lockboxes</h2><p>Current inventory and movement history.</p></div><button id="addInventory" class="primary">+ Add Inventory</button></div>
+  <div id="keyRows"></div>
 </main>
 </div>
 <div id="modal" class="modal hidden" role="dialog" aria-modal="true">
@@ -27,6 +32,18 @@
    <div id="turnStartFields" class="form-grid"><label>Notice Date<input id="newNotice" type="date"></label><label>Move Out Date<input id="newMove" type="date"></label></div>
    <label>Notes<textarea id="newNotes" placeholder="Optional context…"></textarea></label>
    <div class="modal-actions"><button type="button" id="cancelModal">Cancel</button><button type="submit" class="primary">Start Process</button></div>
+  </form>
+ </div>
+</div>
+<div id="inventoryModal" class="modal hidden" role="dialog" aria-modal="true">
+ <div class="modal-card">
+  <div class="modal-head"><div><h2>Add Inventory</h2><p>Add a property key tag or reusable lockbox.</p></div><button id="closeInventoryModal" class="icon-btn">×</button></div>
+  <form id="inventoryForm">
+   <label>Inventory Type<select id="inventoryType"><option value="key">Property Key Tag</option><option value="lockbox">Lockbox</option></select></label>
+   <label>Number<input id="inventoryNumber" required placeholder="42"></label>
+   <label id="inventoryPropertyWrap">Property Address<input id="inventoryProperty" placeholder="842 E 9th"></label>
+   <label>Notes<textarea id="inventoryNotes" placeholder="Optional notes…"></textarea></label>
+   <div class="modal-actions"><button type="button" id="cancelInventoryModal">Cancel</button><button type="submit" class="primary">Add Inventory</button></div>
   </form>
  </div>
 </div>
