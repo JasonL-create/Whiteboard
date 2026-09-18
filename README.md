@@ -1,4 +1,5 @@
-# Whiteboard v13
-- Replaced the logo asset with the background-matched version supplied by the user.
-- Kept the logo compact (48px desktop / 42px mobile) so it adds header presence without increasing header height.
-- Permanent view navigation remains Whiteboard → Keys → Archived.
+# Whiteboard v15
+
+Stability rebuild. Navigation and Keys routing are initialized before first render; no render-function monkey patching. Logo filename changed to bust browser cache.
+
+Replace all files in the repo with this package.
