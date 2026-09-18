@@ -54,3 +54,8 @@
 .context-nav .filter-btn{font-weight:500}.board{padding-top:14px}.board-head{padding-top:0}
 #rows{position:relative;z-index:1}
 @media(max-width:850px){.app-shell{padding:0 14px 40px}.fixed-shell{padding-top:8px}.brand-row{height:50px}.master-nav,.context-nav{height:auto;min-height:54px;flex-wrap:wrap;padding:8px 0}.master-left{flex-wrap:wrap}.context-left{flex-wrap:wrap}.nav-btn,.filter-btn{padding:8px 10px}.search-panel{left:auto;right:0}.board{padding-top:10px}}
+
+/* v23: modal layering + stable dropdown hover + ALL placement */
+.modal{z-index:1000}
+.dropdown-panel{top:calc(100% - 1px);z-index:500}
+.nav-dropdown{padding-bottom:1px;margin-bottom:-1px}

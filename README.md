@@ -1,3 +1,1 @@
-Whiteboard v22
-
-Rebuilt from the v21 shell with the startup crash fixed. The new three-row fixed website-style header now initializes without referencing the removed legacy Start New button.
+Whiteboard v23 — fixes Start New modal layering, restores ALL before Turns, and removes the hover gap that caused dropdown menus to disappear before the pointer could reach them.
