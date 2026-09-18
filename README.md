@@ -1,6 +1,4 @@
-# Whiteboard v12
-
-- Adds the supplied Whiteboard logo to the upper-left header.
-- Makes WHITEBOARD, KEYS, and ARCHIVED permanent navigation controls in that order.
-- Removes the duplicate Whiteboard button from the Keys content area.
-- Keeps the existing v11 Keys/property workflow intact.
+# Whiteboard v13
+- Replaced the logo asset with the background-matched version supplied by the user.
+- Kept the logo compact (48px desktop / 42px mobile) so it adds header presence without increasing header height.
+- Permanent view navigation remains Whiteboard → Keys → Archived.

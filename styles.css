@@ -16,3 +16,13 @@
 /* v12 header branding + permanent view navigation */
 .brand{display:flex;align-items:center;gap:12px}.brand img{width:44px;height:44px;object-fit:contain;flex:0 0 auto}.view-nav{margin-left:auto;display:flex;gap:8px;align-items:center}.view-nav .filter-btn.active-view{border-color:var(--accent);background:var(--accent-soft)}.keys-top{justify-content:flex-start}.keys-top .spacer{display:none}
 @media(max-width:850px){.brand img{width:38px;height:38px}.view-nav{margin-left:0;width:100%;order:10}.filters{align-items:center}}
+
+/* v13: compact logo treatment */
+.brand img{
+  width:48px;
+  height:48px;
+  display:block;
+  object-fit:contain;
+  border-radius:50%;
+}
+@media(max-width:850px){.brand img{width:42px;height:42px}}
