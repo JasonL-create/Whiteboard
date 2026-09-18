@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Whiteboard</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="app-shell">
+<header class="topbar">
+  <div><h1>Whiteboard</h1><p>Shared view of turns and listings</p></div>
+  <div class="top-actions"><input id="search" type="search" placeholder="Search property…"><button id="newProcess" class="primary">+ Start New Process</button></div>
+</header>
+<nav class="filters" id="filters"></nav>
+<main class="board">
+  <div class="board-head"><div>PROPERTY</div><div>TYPE</div><div>STATUS</div><div></div></div>
+  <div id="rows"></div>
+</main>
+</div>
+<div id="modal" class="modal hidden" role="dialog" aria-modal="true">
+ <div class="modal-card">
+  <div class="modal-head"><div><h2>Start New Process</h2><p>Create a new Turn or Listing.</p></div><button id="closeModal" class="icon-btn">×</button></div>
+  <form id="newForm">
+   <label>Property Address<input id="newAddress" required placeholder="1350 Swayze"></label>
+   <label>Type<select id="newType"><option value="turn">Turn</option><option value="listing">Listing</option></select></label>
+   <div id="turnStartFields" class="form-grid"><label>Notice Date<input id="newNotice" type="date"></label><label>Move Out Date<input id="newMove" type="date"></label></div>
+   <label>Notes<textarea id="newNotes" placeholder="Optional context…"></textarea></label>
+   <div class="modal-actions"><button type="button" id="cancelModal">Cancel</button><button type="submit" class="primary">Start Process</button></div>
+  </form>
+ </div>
+</div>
+<script src="app.js"></script>
+</body></html>
