@@ -74,3 +74,11 @@
 
 /* v28 universal search match highlighting */
 .search-highlight{background:#ffe88a;color:inherit;border-radius:2px;padding:0 1px;font-weight:inherit}
+
+/* v29: subtle workflow card tints */
+.row.listing-card{background:#f1faf4;border-color:#cfe3d5}
+.row.listing-card .row-main:hover{background:#ebf7ef}
+.row.active-turn-card{background:#fff3f3;border-color:#ead0d0}
+.row.active-turn-card .row-main:hover{background:#fceded}
+.row.listing-card .details{background:#f7fbf8}
+.row.active-turn-card .details{background:#fff8f8}

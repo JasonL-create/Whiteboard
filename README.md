@@ -1,1 +1,1 @@
-Whiteboard v28 — adds live highlighting of matching text throughout universal search results.
+Whiteboard v29 — adds subtle card tinting: Listings use soft green, active Turns use soft red, notice-stage Turns stay white, and archived cards remain gray.
