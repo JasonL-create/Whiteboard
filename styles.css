@@ -26,3 +26,5 @@
   border-radius:50%;
 }
 @media(max-width:850px){.brand img{width:42px;height:42px}}
+
+.access-group{margin-top:14px;padding-top:14px;border-top:2px solid #c8d1d7}
