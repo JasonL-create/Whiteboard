@@ -82,3 +82,11 @@
 .row.active-turn-card .row-main:hover{background:#fceded}
 .row.listing-card .details{background:#f7fbf8}
 .row.active-turn-card .details{background:#fff8f8}
+
+/* v31: uniform cards; workflow type carries the visual distinction */
+.type.turn{color:var(--muted)}
+.type.listing{color:var(--rented)}
+.type.turn-active{color:var(--danger);font-weight:800}
+.row.listing-card,.row.active-turn-card{background:var(--card);border-color:var(--line)}
+.row.listing-card .row-main:hover,.row.active-turn-card .row-main:hover{background:#f7fafc}
+.row.listing-card .details,.row.active-turn-card .details{background:#f7f9fa}
