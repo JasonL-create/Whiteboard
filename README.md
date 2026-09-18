@@ -1,1 +1,6 @@
-Whiteboard v23 — fixes Start New modal layering, restores ALL before Turns, and removes the hover gap that caused dropdown menus to disappear before the pointer could reach them.
+Whiteboard v24
+
+- Permanent search field in master navigation.
+- Keys: LB OUT and KEYS OUT are toggle filters.
+- Keys: Sort By Tag Number or Property Address.
+- LB Inventory dropdown stabilized and shows availability/current property.

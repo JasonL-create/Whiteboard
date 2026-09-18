@@ -59,3 +59,12 @@
 .modal{z-index:1000}
 .dropdown-panel{top:calc(100% - 1px);z-index:500}
 .nav-dropdown{padding-bottom:1px;margin-bottom:-1px}
+
+
+/* v24: permanent search + Keys filters/sort + stable LB inventory */
+.shell-search{width:250px;border:1px solid var(--line);background:#fff;border-radius:7px;padding:9px 12px;color:var(--text);height:40px}
+.manual-dropdown:hover>.dropdown-panel{display:none}
+.manual-dropdown>.dropdown-panel.show{display:grid}
+.lb-inventory-item{display:flex!important;justify-content:space-between;gap:18px;align-items:center;color:var(--text)!important;opacity:1!important}
+.lb-inventory-item small{font-size:10px;color:var(--muted);font-weight:700}
+@media(max-width:850px){.shell-search{width:min(240px,100%)}}
