@@ -1,1 +1,1 @@
-Whiteboard v32 — Mailed Disposition now keeps an active Turn card intact and adds Mailed Disp to the collapsed card.
+Whiteboard v33 — adds Mark Complete — Keep Visible for Turns, with blue TURN - COMPLETED status preserved in Archive.

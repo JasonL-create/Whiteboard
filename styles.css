@@ -90,3 +90,8 @@
 .row.listing-card,.row.active-turn-card{background:var(--card);border-color:var(--line)}
 .row.listing-card .row-main:hover,.row.active-turn-card .row-main:hover{background:#f7fafc}
 .row.listing-card .details,.row.active-turn-card .details{background:#f7f9fa}
+
+/* v33: explicit Turn completion state */
+.type.turn-completed{color:#2477c9;font-weight:800}
+.turn-complete-control{display:flex;align-items:center;gap:9px;margin-top:18px;padding:14px 2px 0;border-top:1px solid var(--line);font-size:13px;font-weight:700;color:var(--text)}
+.turn-complete-control input{width:18px;height:18px}
