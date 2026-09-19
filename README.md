@@ -1,1 +1,1 @@
-Whiteboard v31 — uniform card colors; LISTING is green, TURN is gray, and active turns display TURN - ACTIVE in red.
+Whiteboard v32 — Mailed Disposition now keeps an active Turn card intact and adds Mailed Disp to the collapsed card.
