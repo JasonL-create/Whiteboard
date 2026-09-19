@@ -1,1 +1,1 @@
-TurnFlow v41 — separates Completed from Keep Visible for Turns and Listings, preserves completion state in Archive, and adds clearer spacing between Type and Property.
+TurnFlow v42 — expanded Key cards now use the same dark 2px outline treatment as expanded Project cards.

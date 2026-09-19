@@ -185,3 +185,6 @@ body{background:var(--bg);color:var(--text)}
 .completion-controls input{width:18px;height:18px}
 .completion-controls .disabled{opacity:.42;cursor:default}
 @media(max-width:850px){.board-head,.row-main{grid-template-columns:105px minmax(140px,1fr) minmax(240px,2fr) 24px;gap:16px}}
+
+/* v42: expanded Key cards use the same active-card outline as Projects */
+.key-row.open{border:2px solid #334155;outline:none}
