@@ -1,1 +1,1 @@
-TurnFlow v44 — navigation selected state stays white so icon image backgrounds blend cleanly; selection uses blue label + underline.
+TurnFlow v45 — replaces the app header with the newly supplied TurnFlow logo and removes obsolete logo assets from the package.
