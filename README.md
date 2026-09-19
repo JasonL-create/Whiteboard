@@ -1,1 +1,1 @@
-TurnFlow v35 — visual redesign based on the approved TurnFlow mockup. Renames the Whiteboard area to Projects, uses the supplied TurnFlow logo, adds the larger app header/navigation, project page hero, and polished filter/search controls while preserving existing workflow, Keys, Archive, search, completion, and card logic.
+TurnFlow v36 — preserves the v35 layout while updating the supplied TurnFlow logo, replacing text nav symbols with supplied graphic icons, removing the Add New caret, and enlarging the search magnifying glass.

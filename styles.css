@@ -116,3 +116,15 @@ body{background:var(--bg);color:var(--text)}
 .board{padding-top:20px}.board-head{padding:0 20px 9px}.row,.key-row{border-color:#dce4eb;box-shadow:0 2px 7px rgba(28,49,68,.035);border-radius:11px}.row.open{border:2px solid #334155}.row-main:hover{background:#f9fbfd}
 .dropdown-panel{border-color:#d8e1e9;border-radius:10px;box-shadow:0 12px 28px rgba(24,43,62,.13)}
 @media(max-width:850px){.brand-row{height:78px;padding:10px 16px}.brand-row .brand img{width:190px}.company-name{display:none}.user-chip{margin-left:auto}.master-nav{height:58px;padding:0 10px;overflow-x:auto}.master-left{gap:2px}.nav-btn{padding:0 12px;font-size:12px}.nav-icon{display:none}.workspace{padding:24px 14px 0}.page-hero{align-items:flex-start}.page-hero h1{font-size:32px}.page-hero p{font-size:14px}.hero-add{min-width:auto;padding:12px 14px}.context-nav{align-items:stretch}.context-left,.context-right{flex-wrap:wrap}.context-right{width:100%;margin-left:0}.search-wrap{min-width:100%;width:100%}}
+
+/* v36 supplied TurnFlow branding + graphic nav icons */
+.brand-row .brand img{width:320px;max-height:88px;object-fit:contain;object-position:left center}
+.nav-btn{display:flex;align-items:center;justify-content:center;gap:10px}
+.nav-icon-img{width:30px;height:30px;object-fit:contain;display:block;flex:0 0 auto}
+.nav-btn.selected .nav-icon-img{filter:none}
+.hero-add{display:flex;align-items:center;justify-content:center;gap:8px}
+.hero-add>span:first-child{margin-right:0}
+.search-wrap{gap:14px}
+.search-icon{width:25px;height:25px;border:4px solid #116b9b;border-radius:50%;position:relative;display:block;flex:0 0 25px;box-sizing:border-box}
+.search-icon:after{content:"";position:absolute;width:12px;height:4px;background:#116b9b;border-radius:3px;right:-10px;bottom:-5px;transform:rotate(45deg);transform-origin:left center}
+@media(max-width:850px){.brand-row .brand img{width:210px}.nav-icon-img{display:none}.search-icon{width:23px;height:23px;flex-basis:23px}}
