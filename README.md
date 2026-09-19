@@ -1,1 +1,1 @@
-Whiteboard v33 — adds Mark Complete — Keep Visible for Turns, with blue TURN - COMPLETED status preserved in Archive.
+Whiteboard v34 — TURNS and LISTINGS are now primary filters while retaining their status dropdowns; redundant All Turns and All Listings dropdown options were removed.
