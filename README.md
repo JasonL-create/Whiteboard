@@ -1,1 +1,1 @@
-TurnFlow v42 — expanded Key cards now use the same dark 2px outline treatment as expanded Project cards.
+TurnFlow v44 — navigation selected state stays white so icon image backgrounds blend cleanly; selection uses blue label + underline.
