@@ -1,1 +1,1 @@
-Whiteboard v34 — TURNS and LISTINGS are now primary filters while retaining their status dropdowns; redundant All Turns and All Listings dropdown options were removed.
+TurnFlow v35 — visual redesign based on the approved TurnFlow mockup. Renames the Whiteboard area to Projects, uses the supplied TurnFlow logo, adds the larger app header/navigation, project page hero, and polished filter/search controls while preserving existing workflow, Keys, Archive, search, completion, and card logic.

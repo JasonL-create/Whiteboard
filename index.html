@@ -3,32 +3,35 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Whiteboard</title>
-<link rel="stylesheet" href="styles.css?v=34" />
+<title>TurnFlow</title>
+<link rel="stylesheet" href="styles.css?v=35" />
 </head>
 <body>
 <div class="app-shell">
 <div class="fixed-shell">
-<header class="brand-row"><div class="brand"><img src="wb-logo-v15.png" alt="Whiteboard logo"></div></header>
+<header class="brand-row"><div class="brand"><img src="turnflow-logo.png" alt="TurnFlow"></div><div class="company-name">Northwoods Property Management</div><div class="user-chip">JL</div></header>
 <nav class="master-nav" id="masterNav"></nav>
-<div class="context-nav" id="contextNav"></div>
 </div>
-<main class="board">
-  <div class="board-head"><div>TYPE</div><div>PROPERTY</div><div>STATUS</div><div></div></div>
-  <div id="rows"></div>
+<main class="workspace">
+  <section class="page-hero" id="pageHero"></section>
+  <div class="context-nav" id="contextNav"></div>
+  <div class="board">
+    <div class="board-head"><div>TYPE</div><div>PROPERTY</div><div>STATUS</div><div></div></div>
+    <div id="rows"></div>
+  </div>
 </main>
 </div>
 <div id="modal" class="modal hidden" role="dialog" aria-modal="true">
  <div class="modal-card">
-  <div class="modal-head"><div><h2>Start New Process</h2><p>Create a new Turn or Listing.</p></div><button id="closeModal" class="icon-btn">×</button></div>
+  <div class="modal-head"><div><h2>Start New Project</h2><p>Create a new Turn or Listing.</p></div><button id="closeModal" class="icon-btn">×</button></div>
   <form id="newForm">
    <label>Property Address<input id="newAddress" required placeholder="1350 Swayze"></label>
    <label>Type<select id="newType"><option value="turn">Turn</option><option value="listing">Listing</option></select></label>
    <div id="turnStartFields" class="form-grid"><label>Notice Date<input id="newNotice" type="date"></label><label>Move Out Date<input id="newMove" type="date"></label></div>
    <label>Notes<textarea id="newNotes" placeholder="Optional context…"></textarea></label>
-   <div class="modal-actions"><button type="button" id="cancelModal">Cancel</button><button type="submit" class="primary">Start Process</button></div>
+   <div class="modal-actions"><button type="button" id="cancelModal">Cancel</button><button type="submit" class="primary">Start Project</button></div>
   </form>
  </div>
 </div>
-<script src="app.js?v=34"></script>
+<script src="app.js?v=35"></script>
 </body></html>
