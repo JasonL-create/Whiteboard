@@ -1,1 +1,1 @@
-TurnFlow v36 — preserves the v35 layout while updating the supplied TurnFlow logo, replacing text nav symbols with supplied graphic icons, removing the Add New caret, and enlarging the search magnifying glass.
+TurnFlow v38 — Add New now suggests existing property addresses, reuses canonical address formatting, shows current property context, and warns before creating a duplicate active project of the same type.

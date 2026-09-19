@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>TurnFlow</title>
-<link rel="stylesheet" href="styles.css?v=36" />
+<link rel="stylesheet" href="styles.css?v=38" />
 </head>
 <body>
 <div class="app-shell">
@@ -25,13 +25,15 @@
  <div class="modal-card">
   <div class="modal-head"><div><h2>Start New Project</h2><p>Create a new Turn or Listing.</p></div><button id="closeModal" class="icon-btn">×</button></div>
   <form id="newForm">
-   <label>Property Address<input id="newAddress" required placeholder="1350 Swayze"></label>
-   <label>Type<select id="newType"><option value="turn">Turn</option><option value="listing">Listing</option></select></label>
-   <div id="turnStartFields" class="form-grid"><label>Notice Date<input id="newNotice" type="date"></label><label>Move Out Date<input id="newMove" type="date"></label></div>
-   <label>Notes<textarea id="newNotes" placeholder="Optional context…"></textarea></label>
-   <div class="modal-actions"><button type="button" id="cancelModal">Cancel</button><button type="submit" class="primary">Start Project</button></div>
+   <label class="address-field">Property Address<input id="newAddress" required autocomplete="off" placeholder="Start typing a property address…"><div id="addressSuggestions" class="address-suggestions hidden"></div><div id="addressMatchNote" class="address-match-note hidden"></div></label>
+   <div class="project-type-buttons">
+    <button type="button" class="project-type-choice selected" data-project-type="turn">TURN</button>
+    <button type="button" class="project-type-choice" data-project-type="listing">LISTING</button>
+   </div>
+   <input id="newType" type="hidden" value="turn">
+   <div class="modal-actions"><button type="button" id="cancelModal">Cancel</button><button type="submit" class="primary">Create Project</button></div>
   </form>
  </div>
 </div>
-<script src="app.js?v=36"></script>
+<script src="app.js?v=38"></script>
 </body></html>
