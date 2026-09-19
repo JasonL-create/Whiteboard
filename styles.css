@@ -140,3 +140,36 @@ body{background:var(--bg);color:var(--text)}
 .address-suggestion{width:100%;border:0;border-top:1px solid #edf1f4;background:#fff;padding:11px 13px;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:3px;color:var(--text)}
 .address-suggestion:first-child{border-top:0}.address-suggestion:hover{background:#f2f7fb}.address-suggestion strong{font-size:14px}.address-suggestion small{font-size:11px;color:var(--muted);font-weight:600}
 .address-match-note{margin-top:7px;padding:9px 11px;border-radius:8px;background:#eef6fd;color:#285c83;font-size:12px;line-height:1.35}
+
+/* v39 — refined Start New Project modal */
+#modal .modal-card{width:min(720px,100%);border-radius:18px;padding:28px 30px 24px;box-shadow:0 24px 70px rgba(24,43,62,.24)}
+#modal .modal-head{align-items:flex-start;margin-bottom:22px}
+#modal .modal-head h2{font-size:30px;line-height:1.1;color:#162b42;letter-spacing:-.02em}
+#modal .icon-btn{font-size:36px;line-height:1;padding:0 4px;color:#6e7d89}
+#modal form{gap:16px;margin-top:0}
+#modal .address-field{position:relative;display:block}
+#modal .address-input-wrap{position:relative}
+#modal .address-input-wrap input{width:100%;height:58px;border:2px solid #ccd7e0;border-radius:10px;padding:0 18px 0 54px;font-size:17px;font-weight:500;color:#24364a;outline:none;transition:.15s}
+#modal .address-input-wrap input:focus{border-color:#1778c8;box-shadow:0 0 0 2px rgba(23,120,200,.08)}
+#modal .address-input-wrap input::placeholder{color:#788795}
+#modal .address-search-icon{position:absolute;left:19px;top:50%;width:20px;height:20px;border:3px solid #63778b;border-radius:50%;transform:translateY(-56%);z-index:2}
+#modal .address-search-icon:after{content:"";position:absolute;width:10px;height:3px;background:#63778b;right:-8px;bottom:-5px;transform:rotate(45deg);border-radius:3px}
+#modal .address-suggestions{top:calc(100% + 7px);border-radius:10px;border:1px solid #d9e2e9;box-shadow:0 14px 32px rgba(24,43,62,.16);max-height:300px}
+#modal .address-suggestion{min-height:64px;padding:10px 14px;display:grid;grid-template-columns:34px minmax(0,1fr) auto;align-items:center;gap:10px}
+#modal .address-suggestion:hover{background:#eef6fc}
+#modal .suggestion-house{font-size:25px;color:#71879b;text-align:center;line-height:1}
+#modal .suggestion-copy{display:flex;flex-direction:column;gap:3px;min-width:0}
+#modal .suggestion-copy strong{font-size:15px;color:#182b3f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#modal .suggestion-copy small{font-size:12px;color:#6e7f90;font-weight:650}
+#modal .suggestion-status{font-size:12px;font-weight:750;border-radius:9px;padding:7px 10px;white-space:nowrap}
+#modal .suggestion-status.turn{background:#e6f2fb;color:#176da8}
+#modal .suggestion-status.listing{background:#e7f6ed;color:#16814c}
+#modal .address-match-note{margin-top:8px;border-radius:8px;padding:9px 11px;background:#f4f8fb;color:#617181;font-size:12px}
+#modal .project-type-label{font-size:12px;font-weight:800;color:#586b7c;margin-top:2px}
+#modal .project-type-buttons{gap:14px}
+#modal .project-type-choice{min-height:62px;border-radius:10px;font-size:17px;letter-spacing:.04em}
+#modal .project-type-choice.selected{background:#eaf4fb;border-color:#1778c8;color:#126ca8;box-shadow:inset 0 0 0 1px #1778c8}
+#modal .modal-actions{border-top:1px solid #e2e8ed;margin:6px -30px -24px;padding:20px 30px 24px;gap:12px}
+#modal .modal-actions button{min-height:48px;font-size:16px}
+#modal .modal-actions .primary{padding-left:22px;padding-right:22px}
+@media(max-width:650px){#modal .modal-card{padding:22px 18px 18px}#modal .modal-head h2{font-size:25px}#modal .modal-actions{margin:4px -18px -18px;padding:16px 18px 18px}#modal .suggestion-status{display:none}}

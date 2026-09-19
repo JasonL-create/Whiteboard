@@ -1,1 +1,1 @@
-TurnFlow v38 — Add New now suggests existing property addresses, reuses canonical address formatting, shows current property context, and warns before creating a duplicate active project of the same type.
+TurnFlow v39 — refines the Start New Project modal with full-width address autocomplete, simplified Active Turn/Active Listing context, and compact project type selection.
