@@ -108,23 +108,10 @@ let lbInventory=JSON.parse(localStorage.getItem('whiteboardLBInventoryV11')||'nu
 function saveKeys(changedKey=null){
   localStorage.setItem('whiteboardKeysV11',JSON.stringify(keys));
   localStorage.setItem('whiteboardLBInventoryV11',JSON.stringify(lbInventory));
-
-  // This function is also called once during legacy page startup, before the
-  // Supabase state variables have been initialized. Never touch normalized
-  // tracking until normalized mode is actually ready.
-  if(normalizedReady){
-    localEditGeneration++;
-    if(changedKey)dirtyKeyIds.add(String(changedKey.id));
-    else{
-      keys.forEach(k=>{
-        const before=normalizedKeyBaseline.get(String(k.id));
-        if(before!==stableJSON(stableKeyShape(k)))dirtyKeyIds.add(String(k.id));
-      });
-    }
-    scheduleNormalizedSave();
-  }else{
-    scheduleCloudSave();
-  }
+  // Current physical Key rows use saveKeyRowDirect(). This scheduler remains for
+  // lockbox inventory/assignment compatibility until that layer is separated too.
+  if(normalizedReady){localEditGeneration++;scheduleNormalizedSave()}
+  else scheduleCloudSave()
 }
 function keyByAddress(a){return keys.find(k=>k.address.toLowerCase()===a.toLowerCase())}
 function usedLBs(){return new Set(keys.filter(k=>k.lb).map(k=>String(k.lb.number)))}
@@ -172,22 +159,136 @@ function renderKeyRowsOnly(){const q=(($('#search')?.value)||'').trim().toLowerC
 function renderKeys(){view='keys';renderShell();$('.board-head').style.display='none';renderKeyRowsOnly()}
 function keyRowHTML(k){const keyStatus=k.keyMissing?'KEY MISSING':k.keyOut?`Out to ${k.keyOut.to}`:'Office';const lbStatus=k.lbMissing?'LB MISSING':k.lb?`LB #${k.lb.number}`:'No LB assigned';return `<section class="key-row ${keyOpenId===k.id?'open':''}" data-kid="${k.id}"><div class="key-main"><div><span class="key-sub">TAG</span> <span class="key-tag">#${k.tag}</span></div><div><div class="key-address">${k.address}</div></div><div class="key-state ${k.keyMissing?'missing-status':''}"><span class="key-location-label">KEY LOCATION</span><div><strong>${keyStatus}</strong>${k.keyOut&&!k.keyMissing?k.keyOut.date:''}</div></div><div class="key-state key-lb ${k.lbMissing?'missing-status':''}">${lbStatus}</div><div>›</div></div>${keyOpenId===k.id?keyDetailsHTML(k):''}</section>`}
 function keyDetailsHTML(k){const hist=(k.history||[]).length?(k.history||[]).map(h=>`<div class="history-row"><div>${short(h.date)}</div><div><strong>${h.event}</strong></div><div>${h.detail||''}</div></div>`).join(''):'<div class="key-sub">No history yet.</div>';return `<div class="key-details"><div class="key-action-grid"><div><strong>Key Check Out</strong></div><div><input class="key-out-date" type="date" value=""></div><div><input class="key-out-to" placeholder="Out to…" value=""></div><div><button class="action-secondary key-checkout" disabled>Check Out Key</button></div><div><strong>Key Return</strong></div><div><input class="key-return-date" type="date" value=""></div><div class="action-detail-spacer"></div><div><button class="action-secondary key-return" disabled>Return Key</button></div><div class="section-gap"></div><div><strong>LB Check Out</strong></div><div><input class="lb-out-date" type="date" value=""></div><div><select class="lb-select"><option value="">Select available LB…</option>${availableLBOptions(k.lb?.number||'')}</select></div><div><button class="action-secondary lb-checkout" disabled>Check Out LB</button></div><div><strong>LB Return</strong></div><div><input class="lb-return-date" type="date" value=""></div><div class="action-detail-spacer"></div><div><button class="action-secondary lb-return" disabled>Return LB</button></div></div><div class="key-notes-panel"><label>Notes</label><textarea class="key-notes" placeholder="Add notes about this key or property…">${(k.notes||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea></div><div class="key-history"><details><summary><strong>History</strong></summary>${hist}</details></div><div class="key-more"><details><summary>More</summary><div class="card-actions"><button class="action-secondary key-missing">${k.keyMissing?'Mark Key Found':'Key Missing'}</button><button class="action-secondary lb-missing">${k.lbMissing?'Mark LB Found':'LB Missing'}</button><button class="action-secondary edit-key">Edit Key Tag / Property</button></div></details></div></div>`}
-function bindKeyActions(){rows.querySelectorAll('.key-row').forEach(row=>{const k=keys.find(x=>String(x.id)===String(row.dataset.kid));if(!k||String(keyOpenId)!==String(k.id))return;const notes=row.querySelector('.key-notes');if(notes){
-  const persistKeyNotes=()=>{
-    k.notes=notes.value;
-    saveKeys(k);
-  };
-  notes.oninput=persistKeyNotes;
-  notes.onchange=persistKeyNotes;
-  notes.onblur=async()=>{
-    persistKeyNotes();
-    // Flush immediately on blur so a refresh/navigation cannot outrun debounce.
-    clearTimeout(normalizedSaveTimer);normalizedSaveTimer=null;
-    if(normalizedReady&&!normalizedSaving)await syncNormalizedChanges();
-  };
-}const keyOutDate=row.querySelector('.key-out-date'),outTo=row.querySelector('.key-out-to'),keyCheckout=row.querySelector('.key-checkout'),keyReturnDate=row.querySelector('.key-return-date'),keyReturn=row.querySelector('.key-return'),lbOutDate=row.querySelector('.lb-out-date'),lbSelect=row.querySelector('.lb-select'),lbCheckout=row.querySelector('.lb-checkout'),lbReturnDate=row.querySelector('.lb-return-date'),lbReturn=row.querySelector('.lb-return');const updateButtons=()=>{keyCheckout.disabled=!!k.keyOut||!keyOutDate.value||!outTo.value.trim();keyReturn.disabled=!k.keyOut||!keyReturnDate.value;lbCheckout.disabled=!!k.lb||!lbOutDate.value||!lbSelect.value;lbReturn.disabled=!k.lb||!lbReturnDate.value};[keyOutDate,outTo,keyReturnDate,lbOutDate,lbSelect,lbReturnDate].forEach(el=>{el.addEventListener('input',updateButtons);el.addEventListener('change',updateButtons)});updateButtons();keyCheckout.onclick=()=>{if(keyCheckout.disabled)return;k.keyOut={date:keyOutDate.value,to:outTo.value.trim()};k.keyMissing=false;logKey(k,'Key out',`Checked out to ${k.keyOut.to}`,k.keyOut.date);saveKeys(k);renderKeys()};keyReturn.onclick=()=>{if(keyReturn.disabled)return;const d=keyReturnDate.value;logKey(k,'Key returned',k.keyOut?`Returned from ${k.keyOut.to}`:'Returned',d);k.keyOut=null;k.keyMissing=false;saveKeys(k);renderKeys()};lbCheckout.onclick=()=>{if(lbCheckout.disabled)return;const n=lbSelect.value,d=lbOutDate.value;k.lb={number:n,outDate:d};k.lbMissing=false;logKey(k,'LB out',`LB #${n} assigned to property`,d);saveKeys(k);renderKeys()};lbReturn.onclick=()=>{if(lbReturn.disabled)return;const d=lbReturnDate.value;if(k.lb)logKey(k,'LB returned',`LB #${k.lb.number} returned to office`,d);k.lb=null;k.lbMissing=false;saveKeys(k);renderKeys()};row.querySelector('.key-missing').onclick=()=>{k.keyMissing=!k.keyMissing;logKey(k,k.keyMissing?'Key missing':'Key found',k.keyMissing?'Key marked missing':'Key located',TODAY);saveKeys(k);renderKeys()};row.querySelector('.lb-missing').onclick=()=>{k.lbMissing=!k.lbMissing;logKey(k,k.lbMissing?'LB missing':'LB found',k.lbMissing?`Lockbox marked missing${k.lb?' — LB #'+k.lb.number:''}`:'Lockbox located',TODAY);saveKeys(k);renderKeys()};row.querySelector('.edit-key').onclick=()=>{const tag=prompt('Key tag number:',k.tag);if(tag===null)return;const addr=prompt('Property address:',k.address);if(addr===null)return;k.tag=tag.trim();k.address=addr.trim();saveKeys(k);renderKeys()}})}
+
+async function saveKeyRowDirect(k,{refresh=true}={}){
+  if(!normalizedReady||!cloudOrgId||!cloudUser)return false;
+  const keyId=String(k.id||'');
+  try{
+    const propertyId=await ensureProperty(k.address);
+    const row={
+      organization_id:cloudOrgId,property_id:propertyId,tag_number:String(k.tag),
+      current_location:k.keyMissing?'missing':(k.keyOut?'checked_out':'office'),
+      checked_out_to:k.keyOut?.to||null,checked_out_at:k.keyOut?.date||null,
+      notes:k.notes||'',created_by:cloudUser.id
+    };
+    let savedId=keyId;
+    if(/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(keyId)){
+      const res=await sb.from('key_tags').update(row)
+        .eq('id',keyId).eq('organization_id',cloudOrgId)
+        .select('id,tag_number,notes,current_location,checked_out_to,checked_out_at,property_id')
+        .single();
+      if(res.error)throw res.error;
+      if(!res.data?.id)throw new Error(`Shared Key Tag #${k.tag} was not updated`);
+    }else{
+      const res=await sb.from('key_tags').insert(row)
+        .select('id,tag_number,notes,current_location,checked_out_to,checked_out_at,property_id')
+        .single();
+      if(res.error)throw res.error;
+      savedId=res.data.id;
+      const oldId=String(k.id);k.id=savedId;
+      if(String(keyOpenId)===oldId)keyOpenId=savedId;
+    }
+
+    dirtyKeyIds.delete(keyId);
+    dirtyKeyIds.delete(String(savedId));
+    normalizedKeyBaseline.set(String(savedId),stableJSON(stableKeyShape(k)));
+    localStorage.setItem('whiteboardKeysV11',JSON.stringify(keys));
+    if(refresh)setTimeout(()=>refreshSharedKeys(false),100);
+    return true;
+  }catch(err){
+    console.error('TurnFlow direct Key save failed',err);
+    syncToast(`Key #${k.tag} did not save`);
+    return false;
+  }
+}
+async function appendKeyHistoryDirect(k,h){
+  if(!normalizedReady||!h||String(h.event||'').toLowerCase().startsWith('lb '))return;
+  const ev=String(h.event||'').toLowerCase();
+  const action=ev.includes('returned')?'return':ev.includes('missing')?'missing':ev.includes('found')?'found':ev.includes('out')?'checkout':'location_change';
+  const propertyId=await ensureProperty(k.address);
+  const outTo=action==='checkout'?(String(h.detail||'').replace(/^Checked out to\s*/i,'')||k.keyOut?.to||null):null;
+  const res=await sb.from('key_transactions').insert({
+    organization_id:cloudOrgId,key_tag_id:k.id,property_id:propertyId,action,
+    action_date:h.date||TODAY,out_to:outTo,notes:h.detail||'',performed_by:cloudUser.id
+  });
+  if(res.error)throw res.error;
+}
+function bindKeyActions(){
+  rows.querySelectorAll('.key-row').forEach(row=>{
+    const k=keys.find(x=>String(x.id)===String(row.dataset.kid));
+    if(!k||String(keyOpenId)!==String(k.id))return;
+
+    const notes=row.querySelector('.key-notes');
+    if(notes){
+      let lastSaved=String(k.notes||'');
+      notes.oninput=()=>{ k.notes=notes.value; localStorage.setItem('whiteboardKeysV11',JSON.stringify(keys)); };
+      const commitNotes=async()=>{
+        const next=notes.value;
+        k.notes=next;
+        if(next===lastSaved)return;
+        const ok=await saveKeyRowDirect(k);
+        if(ok)lastSaved=next;
+      };
+      notes.onchange=commitNotes;
+      notes.onblur=commitNotes;
+    }
+
+    const keyOutDate=row.querySelector('.key-out-date'),outTo=row.querySelector('.key-out-to'),
+      keyCheckout=row.querySelector('.key-checkout'),keyReturnDate=row.querySelector('.key-return-date'),
+      keyReturn=row.querySelector('.key-return'),lbOutDate=row.querySelector('.lb-out-date'),
+      lbSelect=row.querySelector('.lb-select'),lbCheckout=row.querySelector('.lb-checkout'),
+      lbReturnDate=row.querySelector('.lb-return-date'),lbReturn=row.querySelector('.lb-return');
+
+    const updateButtons=()=>{
+      keyCheckout.disabled=!!k.keyOut||!keyOutDate.value||!outTo.value.trim();
+      keyReturn.disabled=!k.keyOut||!keyReturnDate.value;
+      lbCheckout.disabled=!!k.lb||!lbOutDate.value||!lbSelect.value;
+      lbReturn.disabled=!k.lb||!lbReturnDate.value
+    };
+    [keyOutDate,outTo,keyReturnDate,lbOutDate,lbSelect,lbReturnDate].forEach(el=>{
+      el.addEventListener('input',updateButtons);el.addEventListener('change',updateButtons)
+    });
+    updateButtons();
+
+    keyCheckout.onclick=async()=>{
+      if(keyCheckout.disabled)return;
+      k.keyOut={date:keyOutDate.value,to:outTo.value.trim()};k.keyMissing=false;
+      const h={date:k.keyOut.date,event:'Key out',detail:`Checked out to ${k.keyOut.to}`};
+      k.history.unshift(h);
+      const ok=await saveKeyRowDirect(k,{refresh:false});
+      if(ok){try{await appendKeyHistoryDirect(k,h)}catch(e){console.error(e)}}
+      renderKeys();setTimeout(()=>refreshSharedKeys(false),100);
+    };
+    keyReturn.onclick=async()=>{
+      if(keyReturn.disabled)return;
+      const d=keyReturnDate.value;
+      const h={date:d,event:'Key returned',detail:k.keyOut?`Returned from ${k.keyOut.to}`:'Returned'};
+      k.history.unshift(h);k.keyOut=null;k.keyMissing=false;
+      const ok=await saveKeyRowDirect(k,{refresh:false});
+      if(ok){try{await appendKeyHistoryDirect(k,h)}catch(e){console.error(e)}}
+      renderKeys();setTimeout(()=>refreshSharedKeys(false),100);
+    };
+    lbCheckout.onclick=()=>{if(lbCheckout.disabled)return;const n=lbSelect.value,d=lbOutDate.value;k.lb={number:n,outDate:d};k.lbMissing=false;logKey(k,'LB out',`LB #${n} assigned to property`,d);saveKeys(k);renderKeys()};
+    lbReturn.onclick=()=>{if(lbReturn.disabled)return;const d=lbReturnDate.value;if(k.lb)logKey(k,'LB returned',`LB #${k.lb.number} returned to office`,d);k.lb=null;k.lbMissing=false;saveKeys(k);renderKeys()};
+    row.querySelector('.key-missing').onclick=async()=>{
+      k.keyMissing=!k.keyMissing;
+      const h={date:TODAY,event:k.keyMissing?'Key missing':'Key found',detail:k.keyMissing?'Key marked missing':'Key located'};
+      k.history.unshift(h);
+      const ok=await saveKeyRowDirect(k,{refresh:false});
+      if(ok){try{await appendKeyHistoryDirect(k,h)}catch(e){console.error(e)}}
+      renderKeys();setTimeout(()=>refreshSharedKeys(false),100);
+    };
+    row.querySelector('.lb-missing').onclick=()=>{k.lbMissing=!k.lbMissing;logKey(k,k.lbMissing?'LB missing':'LB found',k.lbMissing?`Lockbox marked missing${k.lb?' — LB #'+k.lb.number:''}`:'Lockbox located',TODAY);saveKeys(k);renderKeys()};
+    row.querySelector('.edit-key').onclick=async()=>{
+      const tag=prompt('Key tag number:',k.tag);if(tag===null)return;
+      const addr=prompt('Property address:',k.address);if(addr===null)return;
+      k.tag=tag.trim();k.address=addr.trim();
+      await saveKeyRowDirect(k);renderKeys();
+    };
+  });
+}
 function manageLBInventory(){const raw=prompt('Lockbox numbers in inventory (comma separated):',lbInventory.join(', '));if(raw===null)return;lbInventory=[...new Set(raw.split(',').map(x=>x.trim().replace(/^#/, '')).filter(Boolean))];saveKeys();renderKeys()}
-function addKeyTag(){const tag=prompt('Key tag number:');if(!tag)return;const address=prompt('Property address:');if(!address)return;keys.push({id:'k'+Date.now(),tag:tag.trim(),address:address.trim(),keyOut:null,keyMissing:false,lb:null,lbMissing:false,history:[],notes:''});saveKeys();renderKeys()}
+async function addKeyTag(){const tag=prompt('Key tag number:');if(!tag)return;const address=prompt('Property address:');if(!address)return;const k={id:'k'+Date.now(),tag:tag.trim(),address:address.trim(),keyOut:null,keyMissing:false,lb:null,lbMissing:false,history:[],notes:''};keys.push(k);const ok=await saveKeyRowDirect(k);if(!ok)keys=keys.filter(x=>x!==k);renderKeys()}
 // Search is controlled from the fixed SEARCH dropdown.
 saveKeys();
 render();
@@ -519,65 +620,8 @@ async function syncNormalizedChanges(){
       }
     }
 
-    for(const k of keyCopies){
-      const originalId=String(k.id);
-      const current=stableJSON(stableKeyShape(k));
-      const before=normalizedKeyBaseline.get(originalId);
-      if(before===current && !dirtyKeyIds.has(originalId))continue;
-
-      const propertyId=await ensureProperty(k.address);
-      const keyRow={
-        organization_id:cloudOrgId,property_id:propertyId,tag_number:String(k.tag),
-        current_location:k.keyMissing?'missing':(k.keyOut?'checked_out':'office'),
-        checked_out_to:k.keyOut?.to||null,checked_out_at:k.keyOut?.date||null,
-        notes:k.notes||'',created_by:cloudUser.id
-      };
-      let keyId=originalId;
-      if(/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(keyId)){
-        const u=await sb.from('key_tags').update(keyRow).eq('id',keyId).eq('organization_id',cloudOrgId).select('id,notes,current_location,checked_out_to,checked_out_at');
-        if(u.error)throw u.error;
-        if(!u.data?.length)throw new Error(`Key ${k.tag} was not updated in shared storage`);
-      }else{
-        const ins=await sb.from('key_tags').insert(keyRow).select('id').single();
-        if(ins.error)throw ins.error;
-        keyId=ins.data.id;
-        const live=keys.find(y=>String(y.id)===originalId);
-        if(live){
-          live.id=keyId;
-          if(String(keyOpenId)===originalId)keyOpenId=keyId;
-        }
-        dirtyKeyIds.delete(originalId);
-        normalizedKeyBaseline.delete(originalId);
-      }
-
-      // Only clear dirty/baseline if the live record is still exactly the version
-      // that was just written. If user typed again, the newer version stays dirty.
-      const live=keys.find(y=>String(y.id)===String(keyId));
-      const liveShape=live?stableJSON(stableKeyShape(live)):null;
-      const savedShape={...stableKeyShape(k),id:String(keyId)};
-      const savedJSON=stableJSON(savedShape);
-      normalizedKeyBaseline.set(String(keyId),savedJSON);
-      if(liveShape===savedJSON)dirtyKeyIds.delete(String(keyId));
-      else{
-        dirtyKeyIds.add(String(keyId));
-        normalizedSavePending=true;
-      }
-
-      let oldHistory=[];
-      if(before){try{oldHistory=JSON.parse(before).history||[]}catch(_){}}
-      const oldSet=new Set(oldHistory.map(stableJSON));
-      const newHistory=(k.history||[]).filter(h=>!oldSet.has(stableJSON({date:h.date||'',event:h.event||'',detail:h.detail||''})));
-      for(const h of newHistory.reverse()){
-        const ev=String(h.event||'').toLowerCase();
-        if(ev.startsWith('lb '))continue;
-        const action=ev.includes('returned')?'return':ev.includes('missing')?'missing':ev.includes('found')?'found':ev.includes('out')?'checkout':'location_change';
-        const outTo=action==='checkout'?(String(h.detail||'').replace(/^Checked out to\s*/i,'')||k.keyOut?.to||null):null;
-        const ins=await sb.from('key_transactions').insert({
-          organization_id:cloudOrgId,key_tag_id:keyId,property_id:propertyId,action,
-          action_date:h.date||TODAY,out_to:outTo,notes:h.detail||'',performed_by:cloudUser.id
-        });if(ins.error)throw ins.error;
-      }
-    }
+    // Physical Key Tag current-state writes are intentionally NOT handled here.
+    // They use saveKeyRowDirect(), giving Keys one writer and one authoritative path.
 
     // Lockbox writes use the immutable snapshot captured with this save.
     const desired=new Set(lbCopies);

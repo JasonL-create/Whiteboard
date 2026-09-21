@@ -1,4 +1,4 @@
-# TurnFlow v65 — Supabase connected build
+# TurnFlow v66 — Supabase connected build
 
 This build keeps the v50 interface and adds:
 - Supabase email/password authentication
@@ -149,4 +149,20 @@ Refactor:
 - localStorage remains cache only after normalized startup.
 - Transactions remain history; current checkout/missing state comes from `key_tags`.
 - Lockbox current assignment comes from `lockboxes`; lockbox transactions remain history.
+No SQL changes required.
+
+## v66 one-writer Key refactor
+The new observation was decisive: the first edit on a newly touched Key propagated, while later edits
+to that same card did not. The Key row still had two write mechanisms: direct UI state fed the generic
+normalized batch saver, while realtime/polling refreshed the same row.
+
+v66 removes that ambiguity for physical Key Tags:
+- Key Notes write directly to exactly one `key_tags` row on change/blur and verify the returned row.
+- Key checkout, return, missing/found, tag/address edits, and new Key Tags use the same direct writer.
+- The generic normalized batch saver no longer writes `key_tags`.
+- Key transaction history is appended separately after the current-state row succeeds.
+- localStorage is only a typing cache; it is not a database writer.
+- Key realtime still reads only normalized Key tables.
+This gives physical Keys one current-state reader and one current-state writer, matching the Projects
+model much more closely. Lockbox actions remain on their existing normalized path for now.
 No SQL changes required.
