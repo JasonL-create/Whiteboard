@@ -108,15 +108,22 @@ let lbInventory=JSON.parse(localStorage.getItem('whiteboardLBInventoryV11')||'nu
 function saveKeys(changedKey=null){
   localStorage.setItem('whiteboardKeysV11',JSON.stringify(keys));
   localStorage.setItem('whiteboardLBInventoryV11',JSON.stringify(lbInventory));
-  if(changedKey)dirtyKeyIds.add(String(changedKey.id));
-  else{
-    // Detect any locally changed key record so Keys do not depend on UI timing.
-    keys.forEach(k=>{
-      const before=normalizedKeyBaseline.get(String(k.id));
-      if(before!==stableJSON(stableKeyShape(k)))dirtyKeyIds.add(String(k.id));
-    });
+
+  // This function is also called once during legacy page startup, before the
+  // Supabase state variables have been initialized. Never touch normalized
+  // tracking until normalized mode is actually ready.
+  if(normalizedReady){
+    if(changedKey)dirtyKeyIds.add(String(changedKey.id));
+    else{
+      keys.forEach(k=>{
+        const before=normalizedKeyBaseline.get(String(k.id));
+        if(before!==stableJSON(stableKeyShape(k)))dirtyKeyIds.add(String(k.id));
+      });
+    }
+    scheduleNormalizedSave();
+  }else{
+    scheduleCloudSave();
   }
-  if(normalizedReady)scheduleNormalizedSave();else scheduleCloudSave()
 }
 function keyByAddress(a){return keys.find(k=>k.address.toLowerCase()===a.toLowerCase())}
 function usedLBs(){return new Set(keys.filter(k=>k.lb).map(k=>String(k.lb.number)))}

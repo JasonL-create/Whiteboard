@@ -1,4 +1,4 @@
-# TurnFlow v62 — Supabase connected build
+# TurnFlow v63 — Supabase connected build
 
 This build keeps the v50 interface and adds:
 - Supabase email/password authentication
@@ -101,3 +101,14 @@ Keep v59 ZIP as the pre-normalization recovery checkpoint.
 - Startup now reconciles missing Key Tags from the retained v59 workspace recovery snapshot. This specifically repairs a possible partial v60 migration where Projects were created before Key Tags and later startups skipped the all-empty migration condition.
 - Existing key tags are matched by tag number and are not duplicated.
 - No SQL changes required.
+
+## v63 blank-screen startup fix
+v62 introduced normalized Key dirty tracking inside `saveKeys()`, but the legacy app calls
+`saveKeys()` once during initial page startup before the later Supabase variables are initialized.
+That caused a startup exception when `dirtyKeyIds.add(...)` was reached.
+
+v63 gates all normalized Key tracking behind `normalizedReady`. The initial legacy startup save
+uses the existing cloud bootstrap path; after authentication/normalization completes, Key edits use
+the v62 record-level dirty tracking and persistence fixes.
+
+No SQL changes required.
