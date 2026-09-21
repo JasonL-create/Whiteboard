@@ -1,4 +1,4 @@
-# TurnFlow v53 — Supabase connected build
+# TurnFlow v54 — Supabase connected build
 
 This build keeps the v50 interface and adds:
 - Supabase email/password authentication
@@ -29,3 +29,9 @@ Fixes the browser startup error `Cannot access 'cloudReady' before initializatio
 
 ## v53 fix
 Fixes project cards not opening after the v51/v52 string-safe ID migration. Existing numeric local project IDs and future string/UUID IDs now compare consistently. No Supabase SQL changes required.
+
+## v54 fixes
+- Removes the brief login-screen flash for returning authenticated sessions.
+- Strengthens Supabase realtime handling by subscribing to workspace-state INSERT/UPDATE events and filtering the organization client-side.
+- Adds a 2-second shared-state fallback check while the page is visible, so another open browser receives changes even if a websocket subscription is delayed or blocked.
+- No additional Supabase SQL migration is required.

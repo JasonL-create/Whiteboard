@@ -222,6 +222,7 @@ const SUPABASE_URL='https://irpupfvsbbqmoouwbcjh.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_AXEUe6q44IWxy6HCjqRezw__iHdPdfV';
 const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 var cloudReady=false,cloudOrgId=null,cloudUser=null,cloudTimer=null,cloudChannel=null,signupMode=false,applyingRemote=false;
+var cloudPollTimer=null,lastCloudSavedAt=null;
 
 function authMsg(text,ok=false){
   const el=document.querySelector('#authMessage');
@@ -250,6 +251,7 @@ function cloudSnapshot(){
 }
 function applyCloudState(state){
   if(!state)return;
+  if(state.savedAt)lastCloudSavedAt=state.savedAt;
   applyingRemote=true;
   if(Array.isArray(state.projects))data=state.projects;
   if(Array.isArray(state.keys))keys=state.keys;
@@ -274,9 +276,11 @@ function scheduleCloudSave(){
 }
 async function saveCloudState(){
   if(!cloudReady||!cloudOrgId||!cloudUser)return;
+  const snapshot=cloudSnapshot();
+  lastCloudSavedAt=snapshot.savedAt;
   const {error}=await sb.from('workspace_state').upsert({
     organization_id:cloudOrgId,
-    state:cloudSnapshot(),
+    state:snapshot,
     updated_by:cloudUser.id,
     updated_at:new Date().toISOString()
   },{onConflict:'organization_id'});
@@ -301,10 +305,33 @@ async function connectWorkspace(orgId){
   }
   if(cloudChannel)await sb.removeChannel(cloudChannel);
   cloudChannel=sb.channel('turnflow-workspace-'+orgId)
-    .on('postgres_changes',{event:'*',schema:'public',table:'workspace_state',filter:`organization_id=eq.${orgId}`},payload=>{
+    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'workspace_state'},payload=>{
+      if(String(payload.new?.organization_id)!==String(cloudOrgId))return;
       if(payload.new?.updated_by===cloudUser?.id)return;
       if(payload.new?.state){applyCloudState(payload.new.state);syncToast('Updated from shared workspace');}
-    }).subscribe();
+    })
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'workspace_state'},payload=>{
+      if(String(payload.new?.organization_id)!==String(cloudOrgId))return;
+      if(payload.new?.updated_by===cloudUser?.id)return;
+      if(payload.new?.state){applyCloudState(payload.new.state);syncToast('Updated from shared workspace');}
+    })
+    .subscribe(status=>{
+      if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'){
+        console.error('TurnFlow realtime subscription:',status);
+        syncToast('Realtime connection interrupted');
+      }
+    });
+  clearInterval(cloudPollTimer);
+  cloudPollTimer=setInterval(async()=>{
+    if(!cloudReady||!cloudOrgId||document.hidden)return;
+    const {data:latest,error:pollError}=await sb.from('workspace_state').select('state').eq('organization_id',cloudOrgId).maybeSingle();
+    if(pollError||!latest?.state)return;
+    const remoteStamp=latest.state.savedAt||'';
+    if(remoteStamp && remoteStamp!==lastCloudSavedAt){
+      applyCloudState(latest.state);
+      syncToast('Updated from shared workspace');
+    }
+  },2000);
   document.querySelector('#authGate').classList.add('hidden');
   document.querySelector('#userChip').textContent=initials(cloudUser.email);
 }
