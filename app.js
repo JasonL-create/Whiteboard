@@ -105,7 +105,19 @@ const keySeed=[
 ];
 let keys=JSON.parse(localStorage.getItem('whiteboardKeysV11')||'null')||keySeed;
 let lbInventory=JSON.parse(localStorage.getItem('whiteboardLBInventoryV11')||'null')||['7','12','14','18'];
-function saveKeys(){localStorage.setItem('whiteboardKeysV11',JSON.stringify(keys));localStorage.setItem('whiteboardLBInventoryV11',JSON.stringify(lbInventory));if(normalizedReady)scheduleNormalizedSave();else scheduleCloudSave()}
+function saveKeys(changedKey=null){
+  localStorage.setItem('whiteboardKeysV11',JSON.stringify(keys));
+  localStorage.setItem('whiteboardLBInventoryV11',JSON.stringify(lbInventory));
+  if(changedKey)dirtyKeyIds.add(String(changedKey.id));
+  else{
+    // Detect any locally changed key record so Keys do not depend on UI timing.
+    keys.forEach(k=>{
+      const before=normalizedKeyBaseline.get(String(k.id));
+      if(before!==stableJSON(stableKeyShape(k)))dirtyKeyIds.add(String(k.id));
+    });
+  }
+  if(normalizedReady)scheduleNormalizedSave();else scheduleCloudSave()
+}
 function keyByAddress(a){return keys.find(k=>k.address.toLowerCase()===a.toLowerCase())}
 function usedLBs(){return new Set(keys.filter(k=>k.lb).map(k=>String(k.lb.number)))}
 function availableLBOptions(current=''){const used=usedLBs();return lbInventory.slice().sort((a,b)=>+a-+b).map(n=>`<option value="${n}" ${String(current)===String(n)?'selected':''} ${used.has(String(n))&&String(current)!==String(n)?'disabled':''}>LB #${n}${used.has(String(n))&&String(current)!==String(n)?' — checked out':''}</option>`).join('')}
@@ -152,7 +164,20 @@ function renderKeyRowsOnly(){const q=(($('#search')?.value)||'').trim().toLowerC
 function renderKeys(){view='keys';renderShell();$('.board-head').style.display='none';renderKeyRowsOnly()}
 function keyRowHTML(k){const keyStatus=k.keyMissing?'KEY MISSING':k.keyOut?`Out to ${k.keyOut.to}`:'Office';const lbStatus=k.lbMissing?'LB MISSING':k.lb?`LB #${k.lb.number}`:'No LB assigned';return `<section class="key-row ${keyOpenId===k.id?'open':''}" data-kid="${k.id}"><div class="key-main"><div><span class="key-sub">TAG</span> <span class="key-tag">#${k.tag}</span></div><div><div class="key-address">${k.address}</div></div><div class="key-state ${k.keyMissing?'missing-status':''}"><span class="key-location-label">KEY LOCATION</span><div><strong>${keyStatus}</strong>${k.keyOut&&!k.keyMissing?k.keyOut.date:''}</div></div><div class="key-state key-lb ${k.lbMissing?'missing-status':''}">${lbStatus}</div><div>›</div></div>${keyOpenId===k.id?keyDetailsHTML(k):''}</section>`}
 function keyDetailsHTML(k){const hist=(k.history||[]).length?(k.history||[]).map(h=>`<div class="history-row"><div>${short(h.date)}</div><div><strong>${h.event}</strong></div><div>${h.detail||''}</div></div>`).join(''):'<div class="key-sub">No history yet.</div>';return `<div class="key-details"><div class="key-action-grid"><div><strong>Key Check Out</strong></div><div><input class="key-out-date" type="date" value=""></div><div><input class="key-out-to" placeholder="Out to…" value=""></div><div><button class="action-secondary key-checkout" disabled>Check Out Key</button></div><div><strong>Key Return</strong></div><div><input class="key-return-date" type="date" value=""></div><div class="action-detail-spacer"></div><div><button class="action-secondary key-return" disabled>Return Key</button></div><div class="section-gap"></div><div><strong>LB Check Out</strong></div><div><input class="lb-out-date" type="date" value=""></div><div><select class="lb-select"><option value="">Select available LB…</option>${availableLBOptions(k.lb?.number||'')}</select></div><div><button class="action-secondary lb-checkout" disabled>Check Out LB</button></div><div><strong>LB Return</strong></div><div><input class="lb-return-date" type="date" value=""></div><div class="action-detail-spacer"></div><div><button class="action-secondary lb-return" disabled>Return LB</button></div></div><div class="key-notes-panel"><label>Notes</label><textarea class="key-notes" placeholder="Add notes about this key or property…">${(k.notes||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea></div><div class="key-history"><details><summary><strong>History</strong></summary>${hist}</details></div><div class="key-more"><details><summary>More</summary><div class="card-actions"><button class="action-secondary key-missing">${k.keyMissing?'Mark Key Found':'Key Missing'}</button><button class="action-secondary lb-missing">${k.lbMissing?'Mark LB Found':'LB Missing'}</button><button class="action-secondary edit-key">Edit Key Tag / Property</button></div></details></div></div>`}
-function bindKeyActions(){rows.querySelectorAll('.key-row').forEach(row=>{const k=keys.find(x=>String(x.id)===String(row.dataset.kid));if(!k||String(keyOpenId)!==String(k.id))return;const notes=row.querySelector('.key-notes');if(notes){const persistKeyNotes=()=>{k.notes=notes.value;saveKeys()};notes.oninput=persistKeyNotes;notes.onchange=persistKeyNotes;notes.onblur=persistKeyNotes;}const keyOutDate=row.querySelector('.key-out-date'),outTo=row.querySelector('.key-out-to'),keyCheckout=row.querySelector('.key-checkout'),keyReturnDate=row.querySelector('.key-return-date'),keyReturn=row.querySelector('.key-return'),lbOutDate=row.querySelector('.lb-out-date'),lbSelect=row.querySelector('.lb-select'),lbCheckout=row.querySelector('.lb-checkout'),lbReturnDate=row.querySelector('.lb-return-date'),lbReturn=row.querySelector('.lb-return');const updateButtons=()=>{keyCheckout.disabled=!!k.keyOut||!keyOutDate.value||!outTo.value.trim();keyReturn.disabled=!k.keyOut||!keyReturnDate.value;lbCheckout.disabled=!!k.lb||!lbOutDate.value||!lbSelect.value;lbReturn.disabled=!k.lb||!lbReturnDate.value};[keyOutDate,outTo,keyReturnDate,lbOutDate,lbSelect,lbReturnDate].forEach(el=>{el.addEventListener('input',updateButtons);el.addEventListener('change',updateButtons)});updateButtons();keyCheckout.onclick=()=>{if(keyCheckout.disabled)return;k.keyOut={date:keyOutDate.value,to:outTo.value.trim()};k.keyMissing=false;logKey(k,'Key out',`Checked out to ${k.keyOut.to}`,k.keyOut.date);saveKeys();renderKeys()};keyReturn.onclick=()=>{if(keyReturn.disabled)return;const d=keyReturnDate.value;logKey(k,'Key returned',k.keyOut?`Returned from ${k.keyOut.to}`:'Returned',d);k.keyOut=null;k.keyMissing=false;saveKeys();renderKeys()};lbCheckout.onclick=()=>{if(lbCheckout.disabled)return;const n=lbSelect.value,d=lbOutDate.value;k.lb={number:n,outDate:d};k.lbMissing=false;logKey(k,'LB out',`LB #${n} assigned to property`,d);saveKeys();renderKeys()};lbReturn.onclick=()=>{if(lbReturn.disabled)return;const d=lbReturnDate.value;if(k.lb)logKey(k,'LB returned',`LB #${k.lb.number} returned to office`,d);k.lb=null;k.lbMissing=false;saveKeys();renderKeys()};row.querySelector('.key-missing').onclick=()=>{k.keyMissing=!k.keyMissing;logKey(k,k.keyMissing?'Key missing':'Key found',k.keyMissing?'Key marked missing':'Key located',TODAY);saveKeys();renderKeys()};row.querySelector('.lb-missing').onclick=()=>{k.lbMissing=!k.lbMissing;logKey(k,k.lbMissing?'LB missing':'LB found',k.lbMissing?`Lockbox marked missing${k.lb?' — LB #'+k.lb.number:''}`:'Lockbox located',TODAY);saveKeys();renderKeys()};row.querySelector('.edit-key').onclick=()=>{const tag=prompt('Key tag number:',k.tag);if(tag===null)return;const addr=prompt('Property address:',k.address);if(addr===null)return;k.tag=tag.trim();k.address=addr.trim();saveKeys();renderKeys()}})}
+function bindKeyActions(){rows.querySelectorAll('.key-row').forEach(row=>{const k=keys.find(x=>String(x.id)===String(row.dataset.kid));if(!k||String(keyOpenId)!==String(k.id))return;const notes=row.querySelector('.key-notes');if(notes){
+  const persistKeyNotes=()=>{
+    k.notes=notes.value;
+    saveKeys(k);
+  };
+  notes.oninput=persistKeyNotes;
+  notes.onchange=persistKeyNotes;
+  notes.onblur=async()=>{
+    persistKeyNotes();
+    // Flush immediately on blur so a refresh/navigation cannot outrun debounce.
+    clearTimeout(normalizedSaveTimer);
+    if(normalizedReady&&!normalizedSaving)await syncNormalizedChanges();
+  };
+}const keyOutDate=row.querySelector('.key-out-date'),outTo=row.querySelector('.key-out-to'),keyCheckout=row.querySelector('.key-checkout'),keyReturnDate=row.querySelector('.key-return-date'),keyReturn=row.querySelector('.key-return'),lbOutDate=row.querySelector('.lb-out-date'),lbSelect=row.querySelector('.lb-select'),lbCheckout=row.querySelector('.lb-checkout'),lbReturnDate=row.querySelector('.lb-return-date'),lbReturn=row.querySelector('.lb-return');const updateButtons=()=>{keyCheckout.disabled=!!k.keyOut||!keyOutDate.value||!outTo.value.trim();keyReturn.disabled=!k.keyOut||!keyReturnDate.value;lbCheckout.disabled=!!k.lb||!lbOutDate.value||!lbSelect.value;lbReturn.disabled=!k.lb||!lbReturnDate.value};[keyOutDate,outTo,keyReturnDate,lbOutDate,lbSelect,lbReturnDate].forEach(el=>{el.addEventListener('input',updateButtons);el.addEventListener('change',updateButtons)});updateButtons();keyCheckout.onclick=()=>{if(keyCheckout.disabled)return;k.keyOut={date:keyOutDate.value,to:outTo.value.trim()};k.keyMissing=false;logKey(k,'Key out',`Checked out to ${k.keyOut.to}`,k.keyOut.date);saveKeys(k);renderKeys()};keyReturn.onclick=()=>{if(keyReturn.disabled)return;const d=keyReturnDate.value;logKey(k,'Key returned',k.keyOut?`Returned from ${k.keyOut.to}`:'Returned',d);k.keyOut=null;k.keyMissing=false;saveKeys(k);renderKeys()};lbCheckout.onclick=()=>{if(lbCheckout.disabled)return;const n=lbSelect.value,d=lbOutDate.value;k.lb={number:n,outDate:d};k.lbMissing=false;logKey(k,'LB out',`LB #${n} assigned to property`,d);saveKeys(k);renderKeys()};lbReturn.onclick=()=>{if(lbReturn.disabled)return;const d=lbReturnDate.value;if(k.lb)logKey(k,'LB returned',`LB #${k.lb.number} returned to office`,d);k.lb=null;k.lbMissing=false;saveKeys(k);renderKeys()};row.querySelector('.key-missing').onclick=()=>{k.keyMissing=!k.keyMissing;logKey(k,k.keyMissing?'Key missing':'Key found',k.keyMissing?'Key marked missing':'Key located',TODAY);saveKeys(k);renderKeys()};row.querySelector('.lb-missing').onclick=()=>{k.lbMissing=!k.lbMissing;logKey(k,k.lbMissing?'LB missing':'LB found',k.lbMissing?`Lockbox marked missing${k.lb?' — LB #'+k.lb.number:''}`:'Lockbox located',TODAY);saveKeys(k);renderKeys()};row.querySelector('.edit-key').onclick=()=>{const tag=prompt('Key tag number:',k.tag);if(tag===null)return;const addr=prompt('Property address:',k.address);if(addr===null)return;k.tag=tag.trim();k.address=addr.trim();saveKeys(k);renderKeys()}})}
 function manageLBInventory(){const raw=prompt('Lockbox numbers in inventory (comma separated):',lbInventory.join(', '));if(raw===null)return;lbInventory=[...new Set(raw.split(',').map(x=>x.trim().replace(/^#/, '')).filter(Boolean))];saveKeys();renderKeys()}
 function addKeyTag(){const tag=prompt('Key tag number:');if(!tag)return;const address=prompt('Property address:');if(!address)return;keys.push({id:'k'+Date.now(),tag:tag.trim(),address:address.trim(),keyOut:null,keyMissing:false,lb:null,lbMissing:false,history:[],notes:''});saveKeys();renderKeys()}
 // Search is controlled from the fixed SEARCH dropdown.
@@ -227,6 +252,7 @@ var cloudServerVersion=0;
 var normalizedReady=false,normalizedSaveTimer=null,normalizedPollTimer=null,normalizedSaving=false,normalizedSavePending=false,normalizedChannel=null,normalizedRefreshTimer=null;
 var normalizedProjectBaseline=new Map(),normalizedKeyBaseline=new Map(),normalizedLBSet=new Set();
 var propertyIdByNorm=new Map(),normalizedFingerprint='';
+var dirtyKeyIds=new Set();
 
 const TURNFLOW_CLIENT_ID=(crypto.randomUUID?crypto.randomUUID():String(Date.now())+'-'+Math.random());
 
@@ -493,7 +519,7 @@ async function syncNormalizedChanges(){
     for(const k of [...keys]){
       const current=stableJSON(stableKeyShape(k));
       const before=normalizedKeyBaseline.get(String(k.id));
-      if(before===current)continue;
+      if(before===current && !dirtyKeyIds.has(String(k.id)))continue;
       const propertyId=await ensureProperty(k.address);
       const keyRow={
         organization_id:cloudOrgId,property_id:propertyId,tag_number:String(k.tag),
@@ -510,7 +536,9 @@ async function syncNormalizedChanges(){
         if(ins.error)throw ins.error;
         const oldId=keyId;k.id=ins.data.id;keyId=k.id;
         if(String(keyOpenId)===oldId)keyOpenId=k.id;
+        dirtyKeyIds.delete(oldId);
       }
+      dirtyKeyIds.delete(String(k.id));
 
       // Append only newly-added visible history entries.
       let oldHistory=[];
@@ -584,7 +612,11 @@ async function syncNormalizedChanges(){
 }
 async function refreshNormalizedFromServer(showMessage=true){
   if(!normalizedReady)return;
-  if(normalizedSaving){clearTimeout(normalizedRefreshTimer);normalizedRefreshTimer=setTimeout(()=>refreshNormalizedFromServer(showMessage),250);return}
+  if(normalizedSaving||dirtyKeyIds.size){
+    clearTimeout(normalizedRefreshTimer);
+    normalizedRefreshTimer=setTimeout(()=>refreshNormalizedFromServer(showMessage),250);
+    return
+  }
   try{
     const before=normalizedStateFingerprint();
     const fresh=await fetchNormalized();
@@ -612,12 +644,38 @@ function scheduleNormalizedRefresh(){
   clearTimeout(normalizedRefreshTimer);
   normalizedRefreshTimer=setTimeout(()=>refreshNormalizedFromServer(true),120);
 }
+
+async function reconcileMissingKeysFromRecovery(snapshot,rowsData){
+  const recoveryKeys=Array.isArray(snapshot?.keys)?snapshot.keys:[];
+  if(!recoveryKeys.length)return rowsData;
+
+  const existingTags=new Set((rowsData.keyTags||[]).map(k=>String(k.tag_number)));
+  let added=0;
+  for(const k of recoveryKeys){
+    const tag=String(k.tag||'').trim();
+    if(!tag||existingTags.has(tag))continue;
+    const propertyId=await ensureProperty(k.address);
+    const location=k.keyMissing?'missing':(k.keyOut?'checked_out':'office');
+    const ins=await sb.from('key_tags').insert({
+      organization_id:cloudOrgId,property_id:propertyId,tag_number:tag,
+      current_location:location,checked_out_to:k.keyOut?.to||null,
+      checked_out_at:k.keyOut?.date||null,notes:k.notes||'',created_by:cloudUser.id
+    });
+    if(ins.error && ins.error.code!=='23505')throw ins.error;
+    existingTags.add(tag);added++;
+  }
+  if(added)rowsData=await fetchNormalized();
+  return rowsData;
+}
 async function startNormalizedMode(snapshot){
   let rowsData=await fetchNormalized();
   if(rowsData.projects.length===0 && rowsData.keyTags.length===0 && rowsData.properties.length===0){
     await migrateWorkspaceSnapshotToNormalized(snapshot||{});
     rowsData=await fetchNormalized();
   }
+  // v60 could partially migrate Projects before Keys. Repair missing key tags
+  // from the retained recovery snapshot without duplicating existing tags.
+  rowsData=await reconcileMissingKeysFromRecovery(snapshot||{},rowsData);
   applyNormalized(rowsData,{renderUI:true});
   normalizedReady=true;
 

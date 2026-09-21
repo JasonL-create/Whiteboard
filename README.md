@@ -1,4 +1,4 @@
-# TurnFlow v61 — Supabase connected build
+# TurnFlow v62 — Supabase connected build
 
 This build keeps the v50 interface and adds:
 - Supabase email/password authentication
@@ -92,4 +92,12 @@ Keep v59 ZIP as the pre-normalization recovery checkpoint.
 - Key Notes now persist on input, change, and blur.
 - Most importantly, edits made while a previous asynchronous normalized save is still running are queued for a second save pass instead of being dropped. This was capable of reverting the last characters/last Key Note change on refresh.
 - Key row ID matching is string-safe after UUID migration.
+- No SQL changes required.
+
+## v62 Keys normalized-sharing repair
+- Keys now explicitly mark their individual key_tag record dirty whenever a Key action or Key Note changes.
+- Key Notes force an immediate normalized save when the user leaves the Notes field, so reload/navigation cannot outrun the debounce.
+- Realtime refreshes defer while a local Key record is dirty, preventing incoming refreshes from replacing an unsaved Key edit.
+- Startup now reconciles missing Key Tags from the retained v59 workspace recovery snapshot. This specifically repairs a possible partial v60 migration where Projects were created before Key Tags and later startups skipped the all-empty migration condition.
+- Existing key tags are matched by tag number and are not duplicated.
 - No SQL changes required.
