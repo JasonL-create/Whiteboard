@@ -1,4 +1,4 @@
-# TurnFlow v67 — Supabase connected build
+# TurnFlow v68 — Supabase connected build
 
 This build keeps the v50 interface and adds:
 - Supabase email/password authentication
@@ -174,3 +174,9 @@ append `lockbox_transactions` history only after the current-state write succeed
 the authoritative normalized tables. Checkout uses a conditional `status = available` update so two
 browsers cannot assign the same lockbox. LB missing/found also writes directly.
 No SQL changes required.
+
+## v68 Key Log importer
+The preview worked, but the final commit still used the old generic `saveKeys()` path. v68 changes only
+the importer: clean CSV rows insert directly into authoritative `key_tags`, confirmed by Supabase;
+import history is separate; Keys reload from shared tables; completion reports actual imported,
+skipped, and failed counts. No SQL changes required.

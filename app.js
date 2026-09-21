@@ -408,7 +408,43 @@ function previewKeyImport(rowsData){
  $('#commitImport').onclick=()=>commitKeyImport();
 }
 function escapeHTML(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function commitKeyImport(){const rowsData=window.pendingKeyImport||[];const valid=rowsData.filter(r=>!r.issues.length);valid.forEach((r,i)=>keys.push({id:'k'+Date.now()+'_'+i,tag:r.tag,address:r.address,keyOut:null,keyMissing:false,lb:null,lbMissing:false,history:[{date:TODAY,event:'Imported',detail:'Imported from Key Log'}],notes:''}));saveKeys();window.pendingKeyImport=null;alert(`${valid.length} key records imported.`);renderSettings()}
+async function commitKeyImport(){
+  const rowsData=window.pendingKeyImport||[];
+  const valid=rowsData.filter(r=>!r.issues.length);
+  const btn=$('#commitImport');
+  if(!valid.length)return;
+  btn.disabled=true;btn.textContent='Importing…';
+  let imported=0;const failed=[];
+  for(const r of valid){
+    try{
+      const propertyId=await ensureProperty(r.address);
+      const ins=await sb.from('key_tags').insert({
+        organization_id:cloudOrgId,property_id:propertyId,tag_number:String(r.tag),
+        current_location:'office',checked_out_to:null,checked_out_at:null,notes:'',created_by:cloudUser.id
+      }).select('id').single();
+      if(ins.error)throw ins.error;
+      const tx=await sb.from('key_transactions').insert({
+        organization_id:cloudOrgId,key_tag_id:ins.data.id,property_id:propertyId,
+        action:'location_change',action_date:TODAY,location:'office',
+        notes:'Imported from Key Log',performed_by:cloudUser.id
+      });
+      if(tx.error)console.error('TurnFlow import history failed',tx.error);
+      imported++;
+    }catch(err){
+      console.error(`TurnFlow Key import failed on CSV line ${r.line}`,err);
+      failed.push({line:r.line,tag:r.tag,address:r.address,message:err?.message||'Database insert failed'});
+    }
+  }
+  window.pendingKeyImport=null;$('#keyLogFile').value='';
+  await refreshSharedKeys(false);renderSettings();
+  const box=$('#importPreview');
+  if(box){
+    const skipped=rowsData.length-valid.length;
+    const failText=failed.length?`<div class="import-warning"><strong>${failed.length} failed:</strong><br>${failed.map(x=>`Line ${x.line} · Tag ${escapeHTML(x.tag||'—')} · ${escapeHTML(x.message)}`).join('<br>')}</div>`:'';
+    box.innerHTML=`<div class="import-summary"><strong>${imported}</strong> Key Tag${imported===1?'':'s'} imported to shared storage${skipped?` · <strong>${skipped}</strong> flagged/skipped`:''}${failed.length?` · <strong>${failed.length}</strong> failed`:''}</div>${failText}`;
+  }
+  syncToast(imported?`${imported} Key Tag${imported===1?'':'s'} imported`:'No Key Tags imported');
+}
 
 
 /* ===== v46: close expanded cards when clicking outside ===== */
