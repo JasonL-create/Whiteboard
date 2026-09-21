@@ -221,7 +221,7 @@ document.addEventListener('click',e=>{
 const SUPABASE_URL='https://irpupfvsbbqmoouwbcjh.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_AXEUe6q44IWxy6HCjqRezw__iHdPdfV';
 const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
-let cloudReady=false,cloudOrgId=null,cloudUser=null,cloudTimer=null,cloudChannel=null,signupMode=false,applyingRemote=false;
+var cloudReady=false,cloudOrgId=null,cloudUser=null,cloudTimer=null,cloudChannel=null,signupMode=false,applyingRemote=false;
 
 function authMsg(text,ok=false){
   const el=document.querySelector('#authMessage');
