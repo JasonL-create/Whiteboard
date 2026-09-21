@@ -214,3 +214,6 @@ body{background:var(--bg);color:var(--text)}
 .turnflow-toast.show{opacity:1;transform:translateY(0)}
 .toast-check{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:#e6f4ec;color:#237a49;font-weight:900}
 @media(max-width:650px){.turnflow-toast{right:16px;bottom:16px;left:16px;max-width:none}}
+
+/* v49 Configure: lockbox inventory moved out of daily Keys toolbar */
+.configure-lb-list{border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:4px 0 10px}.configure-lb-row{display:grid;grid-template-columns:120px minmax(220px,1fr) 90px;align-items:center;gap:18px;padding:10px 0;border-top:1px solid var(--line)}.configure-lb-row:first-child{border-top:0}.configure-lb-row span{font-size:12px;font-weight:800;letter-spacing:.03em}.lb-available-status{color:var(--rented)}.lb-out-status{color:var(--muted)}.configure-lb-row button{justify-self:end}.configure-empty{padding:18px 0}.import-key-item{border-top:0}

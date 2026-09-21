@@ -1,1 +1,1 @@
-TurnFlow v48 — adds visible restore feedback: a brief card highlight/fade followed by a confirmation toast.
+TurnFlow v49 — Settings renamed Configure; Lockbox Inventory moved into Configure > Key & Lockbox Setup.
