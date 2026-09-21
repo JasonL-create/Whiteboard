@@ -436,3 +436,15 @@ body.auth-booting #appShell{visibility:hidden}
   .page-hero{top:136px !important;height:58px !important}
   .board{padding-top:74px !important}
 }
+
+
+/* v75 navigation/card/search polish */
+/* Keys and Project collapsed cards use the same row height and vertical rhythm. */
+.key-main{min-height:66px !important;padding:10px 20px !important}
+/* Key location values are normal weight; missing state can still call attention. */
+.key-location-value{font-weight:400 !important}
+.key-location-value.missing-status{font-weight:800 !important}
+.key-location-date{font-weight:400;color:var(--muted);margin-left:6px}
+/* Simplified search: text field only, no oversized magnifying-glass artwork. */
+.master-search .search-wrap{gap:0 !important;padding-left:16px !important}
+.master-search .search-icon{display:none !important}

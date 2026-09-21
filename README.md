@@ -214,3 +214,10 @@ Aligned Projects/Keys controls, removed dropdown arrows while retaining hover/cl
 
 ## v73 fixed-shell geometry correction
 The v72 offset incorrectly treated screenshot pixels as CSS pixels. v73 fixes the full shell itself at the viewport top and pins the compact control row at the actual 186px desktop shell height. Both layers are fully opaque. No app/data logic changed.
+
+## v75 polish
+- Archive can no longer remain visually selected while Keys is active; entering Keys also clears the archived filter.
+- Collapsed Key cards now match Project card height.
+- Key Location values such as Office use normal font weight.
+- Main search bar is simplified to a clean text-only Search field with no magnifying-glass graphic.
+- No database/schema changes.
