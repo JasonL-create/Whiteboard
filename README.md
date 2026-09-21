@@ -1,4 +1,4 @@
-# TurnFlow v60 — Supabase connected build
+# TurnFlow v61 — Supabase connected build
 
 This build keeps the v50 interface and adds:
 - Supabase email/password authentication
@@ -84,3 +84,12 @@ After migration, normal edits no longer save the entire office workspace. TurnFl
 No additional SQL migration is required because schema v1 already created these tables, RLS policies, indexes, update triggers, and realtime publication.
 
 Keep v59 ZIP as the pre-normalization recovery checkpoint.
+
+## v61 realtime + Key Notes fix
+- Restores realtime updates on the normalized Supabase tables. INSERT/UPDATE/DELETE events from properties, projects, key_tags, lockboxes, key_transactions, and lockbox_transactions trigger a debounced authoritative refresh.
+- Keeps a 10-second polling fallback in case a realtime event is missed.
+- Fixes the v60 refresh comparison bug that refreshed internal baselines before deciding whether the UI needed to rerender.
+- Key Notes now persist on input, change, and blur.
+- Most importantly, edits made while a previous asynchronous normalized save is still running are queued for a second save pass instead of being dropped. This was capable of reverting the last characters/last Key Note change on refresh.
+- Key row ID matching is string-safe after UUID migration.
+- No SQL changes required.

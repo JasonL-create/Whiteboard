@@ -152,7 +152,7 @@ function renderKeyRowsOnly(){const q=(($('#search')?.value)||'').trim().toLowerC
 function renderKeys(){view='keys';renderShell();$('.board-head').style.display='none';renderKeyRowsOnly()}
 function keyRowHTML(k){const keyStatus=k.keyMissing?'KEY MISSING':k.keyOut?`Out to ${k.keyOut.to}`:'Office';const lbStatus=k.lbMissing?'LB MISSING':k.lb?`LB #${k.lb.number}`:'No LB assigned';return `<section class="key-row ${keyOpenId===k.id?'open':''}" data-kid="${k.id}"><div class="key-main"><div><span class="key-sub">TAG</span> <span class="key-tag">#${k.tag}</span></div><div><div class="key-address">${k.address}</div></div><div class="key-state ${k.keyMissing?'missing-status':''}"><span class="key-location-label">KEY LOCATION</span><div><strong>${keyStatus}</strong>${k.keyOut&&!k.keyMissing?k.keyOut.date:''}</div></div><div class="key-state key-lb ${k.lbMissing?'missing-status':''}">${lbStatus}</div><div>›</div></div>${keyOpenId===k.id?keyDetailsHTML(k):''}</section>`}
 function keyDetailsHTML(k){const hist=(k.history||[]).length?(k.history||[]).map(h=>`<div class="history-row"><div>${short(h.date)}</div><div><strong>${h.event}</strong></div><div>${h.detail||''}</div></div>`).join(''):'<div class="key-sub">No history yet.</div>';return `<div class="key-details"><div class="key-action-grid"><div><strong>Key Check Out</strong></div><div><input class="key-out-date" type="date" value=""></div><div><input class="key-out-to" placeholder="Out to…" value=""></div><div><button class="action-secondary key-checkout" disabled>Check Out Key</button></div><div><strong>Key Return</strong></div><div><input class="key-return-date" type="date" value=""></div><div class="action-detail-spacer"></div><div><button class="action-secondary key-return" disabled>Return Key</button></div><div class="section-gap"></div><div><strong>LB Check Out</strong></div><div><input class="lb-out-date" type="date" value=""></div><div><select class="lb-select"><option value="">Select available LB…</option>${availableLBOptions(k.lb?.number||'')}</select></div><div><button class="action-secondary lb-checkout" disabled>Check Out LB</button></div><div><strong>LB Return</strong></div><div><input class="lb-return-date" type="date" value=""></div><div class="action-detail-spacer"></div><div><button class="action-secondary lb-return" disabled>Return LB</button></div></div><div class="key-notes-panel"><label>Notes</label><textarea class="key-notes" placeholder="Add notes about this key or property…">${(k.notes||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea></div><div class="key-history"><details><summary><strong>History</strong></summary>${hist}</details></div><div class="key-more"><details><summary>More</summary><div class="card-actions"><button class="action-secondary key-missing">${k.keyMissing?'Mark Key Found':'Key Missing'}</button><button class="action-secondary lb-missing">${k.lbMissing?'Mark LB Found':'LB Missing'}</button><button class="action-secondary edit-key">Edit Key Tag / Property</button></div></details></div></div>`}
-function bindKeyActions(){rows.querySelectorAll('.key-row').forEach(row=>{const k=keys.find(x=>x.id===row.dataset.kid);if(!k||keyOpenId!==k.id)return;const notes=row.querySelector('.key-notes');if(notes)notes.oninput=()=>{k.notes=notes.value;saveKeys()};const keyOutDate=row.querySelector('.key-out-date'),outTo=row.querySelector('.key-out-to'),keyCheckout=row.querySelector('.key-checkout'),keyReturnDate=row.querySelector('.key-return-date'),keyReturn=row.querySelector('.key-return'),lbOutDate=row.querySelector('.lb-out-date'),lbSelect=row.querySelector('.lb-select'),lbCheckout=row.querySelector('.lb-checkout'),lbReturnDate=row.querySelector('.lb-return-date'),lbReturn=row.querySelector('.lb-return');const updateButtons=()=>{keyCheckout.disabled=!!k.keyOut||!keyOutDate.value||!outTo.value.trim();keyReturn.disabled=!k.keyOut||!keyReturnDate.value;lbCheckout.disabled=!!k.lb||!lbOutDate.value||!lbSelect.value;lbReturn.disabled=!k.lb||!lbReturnDate.value};[keyOutDate,outTo,keyReturnDate,lbOutDate,lbSelect,lbReturnDate].forEach(el=>{el.addEventListener('input',updateButtons);el.addEventListener('change',updateButtons)});updateButtons();keyCheckout.onclick=()=>{if(keyCheckout.disabled)return;k.keyOut={date:keyOutDate.value,to:outTo.value.trim()};k.keyMissing=false;logKey(k,'Key out',`Checked out to ${k.keyOut.to}`,k.keyOut.date);saveKeys();renderKeys()};keyReturn.onclick=()=>{if(keyReturn.disabled)return;const d=keyReturnDate.value;logKey(k,'Key returned',k.keyOut?`Returned from ${k.keyOut.to}`:'Returned',d);k.keyOut=null;k.keyMissing=false;saveKeys();renderKeys()};lbCheckout.onclick=()=>{if(lbCheckout.disabled)return;const n=lbSelect.value,d=lbOutDate.value;k.lb={number:n,outDate:d};k.lbMissing=false;logKey(k,'LB out',`LB #${n} assigned to property`,d);saveKeys();renderKeys()};lbReturn.onclick=()=>{if(lbReturn.disabled)return;const d=lbReturnDate.value;if(k.lb)logKey(k,'LB returned',`LB #${k.lb.number} returned to office`,d);k.lb=null;k.lbMissing=false;saveKeys();renderKeys()};row.querySelector('.key-missing').onclick=()=>{k.keyMissing=!k.keyMissing;logKey(k,k.keyMissing?'Key missing':'Key found',k.keyMissing?'Key marked missing':'Key located',TODAY);saveKeys();renderKeys()};row.querySelector('.lb-missing').onclick=()=>{k.lbMissing=!k.lbMissing;logKey(k,k.lbMissing?'LB missing':'LB found',k.lbMissing?`Lockbox marked missing${k.lb?' — LB #'+k.lb.number:''}`:'Lockbox located',TODAY);saveKeys();renderKeys()};row.querySelector('.edit-key').onclick=()=>{const tag=prompt('Key tag number:',k.tag);if(tag===null)return;const addr=prompt('Property address:',k.address);if(addr===null)return;k.tag=tag.trim();k.address=addr.trim();saveKeys();renderKeys()}})}
+function bindKeyActions(){rows.querySelectorAll('.key-row').forEach(row=>{const k=keys.find(x=>String(x.id)===String(row.dataset.kid));if(!k||String(keyOpenId)!==String(k.id))return;const notes=row.querySelector('.key-notes');if(notes){const persistKeyNotes=()=>{k.notes=notes.value;saveKeys()};notes.oninput=persistKeyNotes;notes.onchange=persistKeyNotes;notes.onblur=persistKeyNotes;}const keyOutDate=row.querySelector('.key-out-date'),outTo=row.querySelector('.key-out-to'),keyCheckout=row.querySelector('.key-checkout'),keyReturnDate=row.querySelector('.key-return-date'),keyReturn=row.querySelector('.key-return'),lbOutDate=row.querySelector('.lb-out-date'),lbSelect=row.querySelector('.lb-select'),lbCheckout=row.querySelector('.lb-checkout'),lbReturnDate=row.querySelector('.lb-return-date'),lbReturn=row.querySelector('.lb-return');const updateButtons=()=>{keyCheckout.disabled=!!k.keyOut||!keyOutDate.value||!outTo.value.trim();keyReturn.disabled=!k.keyOut||!keyReturnDate.value;lbCheckout.disabled=!!k.lb||!lbOutDate.value||!lbSelect.value;lbReturn.disabled=!k.lb||!lbReturnDate.value};[keyOutDate,outTo,keyReturnDate,lbOutDate,lbSelect,lbReturnDate].forEach(el=>{el.addEventListener('input',updateButtons);el.addEventListener('change',updateButtons)});updateButtons();keyCheckout.onclick=()=>{if(keyCheckout.disabled)return;k.keyOut={date:keyOutDate.value,to:outTo.value.trim()};k.keyMissing=false;logKey(k,'Key out',`Checked out to ${k.keyOut.to}`,k.keyOut.date);saveKeys();renderKeys()};keyReturn.onclick=()=>{if(keyReturn.disabled)return;const d=keyReturnDate.value;logKey(k,'Key returned',k.keyOut?`Returned from ${k.keyOut.to}`:'Returned',d);k.keyOut=null;k.keyMissing=false;saveKeys();renderKeys()};lbCheckout.onclick=()=>{if(lbCheckout.disabled)return;const n=lbSelect.value,d=lbOutDate.value;k.lb={number:n,outDate:d};k.lbMissing=false;logKey(k,'LB out',`LB #${n} assigned to property`,d);saveKeys();renderKeys()};lbReturn.onclick=()=>{if(lbReturn.disabled)return;const d=lbReturnDate.value;if(k.lb)logKey(k,'LB returned',`LB #${k.lb.number} returned to office`,d);k.lb=null;k.lbMissing=false;saveKeys();renderKeys()};row.querySelector('.key-missing').onclick=()=>{k.keyMissing=!k.keyMissing;logKey(k,k.keyMissing?'Key missing':'Key found',k.keyMissing?'Key marked missing':'Key located',TODAY);saveKeys();renderKeys()};row.querySelector('.lb-missing').onclick=()=>{k.lbMissing=!k.lbMissing;logKey(k,k.lbMissing?'LB missing':'LB found',k.lbMissing?`Lockbox marked missing${k.lb?' — LB #'+k.lb.number:''}`:'Lockbox located',TODAY);saveKeys();renderKeys()};row.querySelector('.edit-key').onclick=()=>{const tag=prompt('Key tag number:',k.tag);if(tag===null)return;const addr=prompt('Property address:',k.address);if(addr===null)return;k.tag=tag.trim();k.address=addr.trim();saveKeys();renderKeys()}})}
 function manageLBInventory(){const raw=prompt('Lockbox numbers in inventory (comma separated):',lbInventory.join(', '));if(raw===null)return;lbInventory=[...new Set(raw.split(',').map(x=>x.trim().replace(/^#/, '')).filter(Boolean))];saveKeys();renderKeys()}
 function addKeyTag(){const tag=prompt('Key tag number:');if(!tag)return;const address=prompt('Property address:');if(!address)return;keys.push({id:'k'+Date.now(),tag:tag.trim(),address:address.trim(),keyOut:null,keyMissing:false,lb:null,lbMissing:false,history:[],notes:''});saveKeys();renderKeys()}
 // Search is controlled from the fixed SEARCH dropdown.
@@ -224,7 +224,7 @@ const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 var cloudReady=false,cloudOrgId=null,cloudUser=null,cloudTimer=null,cloudChannel=null,signupMode=false,applyingRemote=false;
 var cloudPollTimer=null,lastCloudSavedAt=null,lastCloudUpdatedAt=null;
 var cloudServerVersion=0;
-var normalizedReady=false,normalizedSaveTimer=null,normalizedPollTimer=null,normalizedSaving=false;
+var normalizedReady=false,normalizedSaveTimer=null,normalizedPollTimer=null,normalizedSaving=false,normalizedSavePending=false,normalizedChannel=null,normalizedRefreshTimer=null;
 var normalizedProjectBaseline=new Map(),normalizedKeyBaseline=new Map(),normalizedLBSet=new Set();
 var propertyIdByNorm=new Map(),normalizedFingerprint='';
 
@@ -459,7 +459,8 @@ async function migrateWorkspaceSnapshotToNormalized(snapshot){
   }
 }
 function scheduleNormalizedSave(){
-  if(!normalizedReady||normalizedSaving||applyingRemote)return;
+  if(!normalizedReady||applyingRemote)return;
+  if(normalizedSaving){normalizedSavePending=true;return}
   clearTimeout(normalizedSaveTimer);
   normalizedSaveTimer=setTimeout(syncNormalizedChanges,400);
 }
@@ -574,7 +575,42 @@ async function syncNormalizedChanges(){
     syncToast('Could not save a shared record');
   }finally{
     normalizedSaving=false;
+    if(normalizedSavePending){
+      normalizedSavePending=false;
+      clearTimeout(normalizedSaveTimer);
+      normalizedSaveTimer=setTimeout(syncNormalizedChanges,50);
+    }
   }
+}
+async function refreshNormalizedFromServer(showMessage=true){
+  if(!normalizedReady)return;
+  if(normalizedSaving){clearTimeout(normalizedRefreshTimer);normalizedRefreshTimer=setTimeout(()=>refreshNormalizedFromServer(showMessage),250);return}
+  try{
+    const before=normalizedStateFingerprint();
+    const fresh=await fetchNormalized();
+
+    // Build incoming fingerprint without permanently changing current UI first.
+    const currentData=data,currentKeys=keys,currentLB=lbInventory;
+    const currentOpen=openId,currentKeyOpen=keyOpenId;
+    const currentProjectBaseline=normalizedProjectBaseline,currentKeyBaseline=normalizedKeyBaseline,currentLBSet=normalizedLBSet,currentFP=normalizedFingerprint;
+    applyNormalized(fresh,{renderUI:false});
+    const incoming=normalizedStateFingerprint();
+
+    if(incoming!==before){
+      openId=(currentOpen!=null && data.some(x=>String(x.id)===String(currentOpen)))?currentOpen:null;
+      keyOpenId=(currentKeyOpen!=null && keys.some(x=>String(x.id)===String(currentKeyOpen)))?currentKeyOpen:null;
+      normalizedFingerprint=incoming;
+      render();
+      if(showMessage)syncToast('Updated from shared records');
+    }else{
+      // applyNormalized already refreshed baselines/local cache; no render needed.
+      normalizedFingerprint=incoming;
+    }
+  }catch(err){console.error('TurnFlow normalized refresh failed',err)}
+}
+function scheduleNormalizedRefresh(){
+  clearTimeout(normalizedRefreshTimer);
+  normalizedRefreshTimer=setTimeout(()=>refreshNormalizedFromServer(true),120);
 }
 async function startNormalizedMode(snapshot){
   let rowsData=await fetchNormalized();
@@ -585,28 +621,28 @@ async function startNormalizedMode(snapshot){
   applyNormalized(rowsData,{renderUI:true});
   normalizedReady=true;
 
-  // Polling is intentionally record-based and conservative. It avoids
-  // whole-workspace overwrites and only rerenders when server records differ.
+  // Record-level realtime: any insert/update/delete in the normalized tables
+  // triggers a debounced authoritative refresh. This restores true live updates
+  // without returning to whole-workspace snapshot writes.
+  if(normalizedChannel)await sb.removeChannel(normalizedChannel);
+  normalizedChannel=sb.channel('turnflow-normalized-'+cloudOrgId);
+  for(const table of ['properties','projects','key_tags','lockboxes','key_transactions','lockbox_transactions']){
+    normalizedChannel.on('postgres_changes',
+      {event:'*',schema:'public',table,filter:`organization_id=eq.${cloudOrgId}`},
+      ()=>scheduleNormalizedRefresh());
+  }
+  normalizedChannel.subscribe(status=>{
+    if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'){
+      console.error('TurnFlow normalized realtime:',status);
+      syncToast('Realtime connection interrupted');
+    }
+  });
+
+  // Slow fallback in case a realtime event is missed.
   clearInterval(normalizedPollTimer);
-  normalizedPollTimer=setInterval(async()=>{
-    if(!normalizedReady||normalizedSaving||document.hidden)return;
-    try{
-      const fresh=await fetchNormalized();
-      const oldData=data,oldKeys=keys,oldLB=lbInventory;
-      // Build a temporary normalized view, compare fingerprint, then keep/apply.
-      const preservedProject=document.querySelector('#rows .row.open')?.dataset.id ?? openId;
-      const preservedKey=document.querySelector('#rows .key-row.open')?.dataset.kid ?? keyOpenId;
-      applyNormalized(fresh,{renderUI:false});
-      const fp=normalizedStateFingerprint();
-      if(fp!==normalizedFingerprint){
-        normalizedFingerprint=fp;
-        openId=(preservedProject!=null && data.some(x=>String(x.id)===String(preservedProject)))?preservedProject:null;
-        keyOpenId=(preservedKey!=null && keys.some(x=>String(x.id)===String(preservedKey)))?preservedKey:null;
-        render();
-        syncToast('Updated from shared records');
-      }
-    }catch(err){console.error('TurnFlow normalized refresh failed',err)}
-  },2000);
+  normalizedPollTimer=setInterval(()=>{
+    if(!document.hidden)refreshNormalizedFromServer(false);
+  },10000);
 }
 function authMsg(text,ok=false){
   const el=document.querySelector('#authMessage');
