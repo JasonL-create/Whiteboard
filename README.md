@@ -1,4 +1,4 @@
-# TurnFlow v68 — Supabase connected build
+# TurnFlow v69 — Supabase connected build
 
 This build keeps the v50 interface and adds:
 - Supabase email/password authentication
@@ -180,3 +180,12 @@ The preview worked, but the final commit still used the old generic `saveKeys()`
 the importer: clean CSV rows insert directly into authoritative `key_tags`, confirmed by Supabase;
 import history is separate; Keys reload from shared tables; completion reports actual imported,
 skipped, and failed counts. No SQL changes required.
+
+## v69 compact sticky Projects/Keys controls
+- Global Search moved into the top navigation and now always says `Search`.
+- Removed descriptive subtitles from Projects and Keys.
+- Projects and Keys each use one compact row: page title, filters/sort, and Add action.
+- Add action stays at the far right.
+- The page control row is sticky beneath the global navigation so records scroll underneath both.
+- Projects and Keys share the same layout pattern.
+- No data, Supabase, Key, Lockbox, or import behavior changed.
