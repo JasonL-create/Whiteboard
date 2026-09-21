@@ -28,7 +28,7 @@ function state(x){if(x.archived)return'archived';if(x.completed)return'completed
 function turnDays(x){const k=get(x,'Keys Returned');if(!k)return 0;return diffDays(k,get(x,'Mailed Disposition')||TODAY,true)}
 function listingDays(x){const d=get(x,'Listed');if(!d)return 0;return diffDays(d,get(x,'Signed Lease Received')||TODAY,false)}
 function totalFromKeys(x){return x.sourceKeysReturned?diffDays(x.sourceKeysReturned,get(x,'Key Pickup')||TODAY,false):null}
-function save(){localStorage.setItem('whiteboardData',JSON.stringify(data));scheduleCloudSave()}
+function save(){localStorage.setItem('whiteboardData',JSON.stringify(data));if(normalizedReady)scheduleNormalizedSave();else scheduleCloudSave()}
 function field(l,v){return `<div class="status-field"><div class="label">${l}</div><div class="value">${v}</div></div>`}
 function turnTypeText(x){return x.completed?'TURN - COMPLETED':(get(x,'Keys Returned')?'TURN - ACTIVE':'TURN')}
 function turnTypeClass(x){return x.completed?'turn-completed':(get(x,'Keys Returned')?'turn-active':'turn')}
@@ -105,7 +105,7 @@ const keySeed=[
 ];
 let keys=JSON.parse(localStorage.getItem('whiteboardKeysV11')||'null')||keySeed;
 let lbInventory=JSON.parse(localStorage.getItem('whiteboardLBInventoryV11')||'null')||['7','12','14','18'];
-function saveKeys(){localStorage.setItem('whiteboardKeysV11',JSON.stringify(keys));localStorage.setItem('whiteboardLBInventoryV11',JSON.stringify(lbInventory));scheduleCloudSave()}
+function saveKeys(){localStorage.setItem('whiteboardKeysV11',JSON.stringify(keys));localStorage.setItem('whiteboardLBInventoryV11',JSON.stringify(lbInventory));if(normalizedReady)scheduleNormalizedSave();else scheduleCloudSave()}
 function keyByAddress(a){return keys.find(k=>k.address.toLowerCase()===a.toLowerCase())}
 function usedLBs(){return new Set(keys.filter(k=>k.lb).map(k=>String(k.lb.number)))}
 function availableLBOptions(current=''){const used=usedLBs();return lbInventory.slice().sort((a,b)=>+a-+b).map(n=>`<option value="${n}" ${String(current)===String(n)?'selected':''} ${used.has(String(n))&&String(current)!==String(n)?'disabled':''}>LB #${n}${used.has(String(n))&&String(current)!==String(n)?' — checked out':''}</option>`).join('')}
@@ -224,8 +224,390 @@ const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 var cloudReady=false,cloudOrgId=null,cloudUser=null,cloudTimer=null,cloudChannel=null,signupMode=false,applyingRemote=false;
 var cloudPollTimer=null,lastCloudSavedAt=null,lastCloudUpdatedAt=null;
 var cloudServerVersion=0;
+var normalizedReady=false,normalizedSaveTimer=null,normalizedPollTimer=null,normalizedSaving=false;
+var normalizedProjectBaseline=new Map(),normalizedKeyBaseline=new Map(),normalizedLBSet=new Set();
+var propertyIdByNorm=new Map(),normalizedFingerprint='';
+
 const TURNFLOW_CLIENT_ID=(crypto.randomUUID?crypto.randomUUID():String(Date.now())+'-'+Math.random());
 
+
+/* ===== v60 normalized Supabase data layer =====
+   Supabase tables are the production source of truth:
+   properties, projects, key_tags, lockboxes, key_transactions,
+   lockbox_transactions. workspace_state remains recovery/migration only. */
+
+function stableProjectShape(x){
+  return {
+    id:String(x.id),address:x.address||'',type:x.type||'turn',
+    archived:!!x.archived,archivedAt:x.archivedAt||'',
+    completed:!!x.completed,keepVisible:x.keepVisible!==false,
+    notes:x.notes||'',price:x.price||'',securityDeposit:x.securityDeposit||'',
+    sourceKeysReturned:x.sourceKeysReturned||'',
+    sourceTurnId:x.sourceTurnId?String(x.sourceTurnId):'',
+    linkedListingId:x.linkedListingId?String(x.linkedListingId):'',
+    process:(x.process||[]).map(p=>({name:p.name,kind:p.kind,value:p.value,note:p.note||''}))
+  };
+}
+function stableKeyShape(k){
+  return {
+    id:String(k.id),tag:String(k.tag||''),address:k.address||'',
+    keyOut:k.keyOut||null,keyMissing:!!k.keyMissing,
+    lb:k.lb?{number:String(k.lb.number),outDate:k.lb.outDate||''}:null,
+    lbMissing:!!k.lbMissing,notes:k.notes||'',
+    history:(k.history||[]).map(h=>({date:h.date||'',event:h.event||'',detail:h.detail||''}))
+  };
+}
+const stableJSON=o=>JSON.stringify(o);
+function normalizedStateFingerprint(){
+  return stableJSON({
+    p:data.map(stableProjectShape).sort((a,b)=>a.id.localeCompare(b.id)),
+    k:keys.map(stableKeyShape).sort((a,b)=>a.id.localeCompare(b.id)),
+    l:lbInventory.map(String).sort()
+  });
+}
+function setNormalizedBaselines(){
+  normalizedProjectBaseline=new Map(data.map(x=>[String(x.id),stableJSON(stableProjectShape(x))]));
+  normalizedKeyBaseline=new Map(keys.map(k=>[String(k.id),stableJSON(stableKeyShape(k))]));
+  normalizedLBSet=new Set(lbInventory.map(String));
+  normalizedFingerprint=normalizedStateFingerprint();
+}
+async function ensureProperty(address){
+  const norm=normalizeAddress(address);
+  if(propertyIdByNorm.has(norm))return propertyIdByNorm.get(norm);
+  let {data:row,error}=await sb.from('properties')
+    .select('id,address,normalized_address')
+    .eq('organization_id',cloudOrgId).eq('normalized_address',norm).maybeSingle();
+  if(error)throw error;
+  if(!row){
+    const res=await sb.from('properties').insert({
+      organization_id:cloudOrgId,address,normalized_address:norm,created_by:cloudUser.id
+    }).select('id,address,normalized_address').single();
+    if(res.error)throw res.error;
+    row=res.data;
+  }
+  propertyIdByNorm.set(norm,row.id);
+  return row.id;
+}
+function projectToRow(x,propertyId){
+  const workflow={
+    process:(x.process||[]).map(p=>({name:p.name,kind:p.kind,value:p.value,note:p.note||''})),
+    price:x.price||'',securityDeposit:x.securityDeposit||'',
+    sourceKeysReturned:x.sourceKeysReturned||'',
+    sourceTurnId:x.sourceTurnId?String(x.sourceTurnId):'',
+    linkedListingId:x.linkedListingId?String(x.linkedListingId):''
+  };
+  return {
+    organization_id:cloudOrgId,property_id:propertyId,project_type:x.type,
+    state:x.archived?'archived':(x.completed?'completed':'active'),
+    completed:!!x.completed,keep_visible:x.keepVisible!==false,
+    archived_at:x.archived?(x.archivedAt?`${x.archivedAt}T12:00:00Z`:new Date().toISOString()):null,
+    completed_at:x.completed?new Date().toISOString():null,
+    workflow_data:workflow,notes:x.notes||'',created_by:cloudUser.id
+  };
+}
+function rowToProject(r,propertyAddress){
+  const w=r.workflow_data||{};
+  return {
+    id:r.id,address:propertyAddress,type:r.project_type,
+    archived:r.state==='archived',archivedAt:r.archived_at?String(r.archived_at).slice(0,10):'',
+    completed:!!r.completed,keepVisible:r.keep_visible!==false,
+    notes:r.notes||'',price:w.price||'',securityDeposit:w.securityDeposit||'',
+    sourceKeysReturned:w.sourceKeysReturned||'',sourceTurnId:w.sourceTurnId||'',
+    linkedListingId:w.linkedListingId||'',
+    process:Array.isArray(w.process)?w.process:(r.project_type==='turn'?turnProcess():listingProcess())
+  };
+}
+function txToHistory(t,isLB=false){
+  const eventMap=isLB
+    ? {assign:'LB out',return:'LB returned',missing:'LB missing',found:'LB found',retire:'LB retired',reactivate:'LB found'}
+    : {checkout:'Key out',return:'Key returned',missing:'Key missing',found:'Key found',location_change:'Key location changed'};
+  let detail=t.notes||'';
+  if(!isLB && t.action==='checkout' && t.out_to)detail=`Checked out to ${t.out_to}`;
+  return {date:t.action_date,event:eventMap[t.action]||t.action,detail};
+}
+async function fetchNormalized(){
+  const [prjRes,propRes,keyRes,lbRes,ktRes,lbtRes]=await Promise.all([
+    sb.from('projects').select('*').eq('organization_id',cloudOrgId),
+    sb.from('properties').select('*').eq('organization_id',cloudOrgId),
+    sb.from('key_tags').select('*').eq('organization_id',cloudOrgId),
+    sb.from('lockboxes').select('*').eq('organization_id',cloudOrgId),
+    sb.from('key_transactions').select('*').eq('organization_id',cloudOrgId).order('created_at',{ascending:false}),
+    sb.from('lockbox_transactions').select('*').eq('organization_id',cloudOrgId).order('created_at',{ascending:false})
+  ]);
+  for(const r of [prjRes,propRes,keyRes,lbRes,ktRes,lbtRes])if(r.error)throw r.error;
+  return {projects:prjRes.data||[],properties:propRes.data||[],keyTags:keyRes.data||[],lockboxes:lbRes.data||[],keyTx:ktRes.data||[],lbTx:lbtRes.data||[]};
+}
+function applyNormalized(rowsData,{renderUI=true}={}){
+  const preservedProject=document.querySelector('#rows .row.open')?.dataset.id ?? openId;
+  const preservedKey=document.querySelector('#rows .key-row.open')?.dataset.kid ?? keyOpenId;
+  const propMap=new Map((rowsData.properties||[]).map(p=>[p.id,p]));
+  propertyIdByNorm=new Map((rowsData.properties||[]).map(p=>[p.normalized_address,p.id]));
+
+  data=(rowsData.projects||[]).map(r=>rowToProject(r,propMap.get(r.property_id)?.address||'Unknown Property'));
+
+  const lbByProperty=new Map();
+  (rowsData.lockboxes||[]).filter(l=>l.property_id && ['assigned','missing'].includes(l.status))
+    .forEach(l=>lbByProperty.set(l.property_id,l));
+  const keyTxByTag=new Map();
+  (rowsData.keyTx||[]).forEach(t=>{if(!keyTxByTag.has(t.key_tag_id))keyTxByTag.set(t.key_tag_id,[]);keyTxByTag.get(t.key_tag_id).push(t)});
+  const lbTxByBox=new Map();
+  (rowsData.lbTx||[]).forEach(t=>{if(!lbTxByBox.has(t.lockbox_id))lbTxByBox.set(t.lockbox_id,[]);lbTxByBox.get(t.lockbox_id).push(t)});
+
+  keys=(rowsData.keyTags||[]).map(k=>{
+    const prop=propMap.get(k.property_id);
+    const lb=lbByProperty.get(k.property_id);
+    const hist=(keyTxByTag.get(k.id)||[]).map(t=>txToHistory(t,false));
+    if(lb)hist.push(...(lbTxByBox.get(lb.id)||[]).map(t=>txToHistory(t,true)));
+    hist.sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+    return {
+      id:k.id,tag:k.tag_number,address:prop?.address||'',notes:k.notes||'',
+      keyOut:k.current_location==='checked_out'?{date:k.checked_out_at||'',to:k.checked_out_to||''}:null,
+      keyMissing:k.current_location==='missing',
+      lb:lb?{number:lb.lockbox_number,outDate:lb.assigned_at||''}:null,
+      lbMissing:lb?.status==='missing',history:hist
+    };
+  });
+  lbInventory=(rowsData.lockboxes||[]).filter(l=>l.status!=='retired').map(l=>String(l.lockbox_number));
+
+  localStorage.setItem('whiteboardData',JSON.stringify(data));
+  localStorage.setItem('whiteboardKeysV11',JSON.stringify(keys));
+  localStorage.setItem('whiteboardLBInventoryV11',JSON.stringify(lbInventory));
+
+  openId=(preservedProject!=null && data.some(x=>String(x.id)===String(preservedProject)))?preservedProject:null;
+  keyOpenId=(preservedKey!=null && keys.some(x=>String(x.id)===String(preservedKey)))?preservedKey:null;
+  setNormalizedBaselines();
+  if(renderUI)render();
+}
+async function migrateWorkspaceSnapshotToNormalized(snapshot){
+  const oldProjects=Array.isArray(snapshot?.projects)?snapshot.projects:[];
+  const oldKeys=Array.isArray(snapshot?.keys)?snapshot.keys:[];
+  const oldLBs=Array.isArray(snapshot?.lockboxes)?snapshot.lockboxes:[];
+
+  // Properties first.
+  for(const address of [...new Set([...oldProjects.map(x=>x.address),...oldKeys.map(k=>k.address)].filter(Boolean))]){
+    await ensureProperty(address);
+  }
+
+  // Projects: insert independently and remember old->new IDs for relationships.
+  const projectIdMap=new Map();
+  for(const x of oldProjects){
+    const propertyId=await ensureProperty(x.address);
+    const row=projectToRow(x,propertyId);
+    const {data:created,error}=await sb.from('projects').insert(row).select('id').single();
+    if(error)throw error;
+    projectIdMap.set(String(x.id),created.id);
+  }
+  // Update relationship IDs inside workflow_data after all IDs exist.
+  const {data:createdProjects,error:cpErr}=await sb.from('projects').select('id,workflow_data').eq('organization_id',cloudOrgId);
+  if(cpErr)throw cpErr;
+  for(const r of createdProjects||[]){
+    const w={...(r.workflow_data||{})};let changed=false;
+    if(w.sourceTurnId && projectIdMap.has(String(w.sourceTurnId))){w.sourceTurnId=projectIdMap.get(String(w.sourceTurnId));changed=true}
+    if(w.linkedListingId && projectIdMap.has(String(w.linkedListingId))){w.linkedListingId=projectIdMap.get(String(w.linkedListingId));changed=true}
+    if(changed){const u=await sb.from('projects').update({workflow_data:w}).eq('id',r.id);if(u.error)throw u.error}
+  }
+
+  // Lockbox inventory.
+  for(const n of oldLBs.map(String)){
+    const {error}=await sb.from('lockboxes').insert({
+      organization_id:cloudOrgId,lockbox_number:n,status:'available',created_by:cloudUser.id
+    });
+    if(error && error.code!=='23505')throw error;
+  }
+
+  // Keys and current lockbox assignments + history.
+  for(const k of oldKeys){
+    const propertyId=await ensureProperty(k.address);
+    const location=k.keyMissing?'missing':(k.keyOut?'checked_out':'office');
+    const {data:keyRow,error}=await sb.from('key_tags').insert({
+      organization_id:cloudOrgId,property_id:propertyId,tag_number:String(k.tag),
+      current_location:location,checked_out_to:k.keyOut?.to||null,checked_out_at:k.keyOut?.date||null,
+      notes:k.notes||'',created_by:cloudUser.id
+    }).select('id').single();
+    if(error)throw error;
+
+    if(k.lb){
+      const {data:lbRow,error:lbFindErr}=await sb.from('lockboxes').select('id').eq('organization_id',cloudOrgId).eq('lockbox_number',String(k.lb.number)).single();
+      if(lbFindErr)throw lbFindErr;
+      const up=await sb.from('lockboxes').update({
+        status:k.lbMissing?'missing':'assigned',property_id:propertyId,assigned_at:k.lb.outDate||TODAY
+      }).eq('id',lbRow.id);
+      if(up.error)throw up.error;
+    }
+
+    // Preserve visible legacy history in the normalized transaction tables.
+    for(const h of [...(k.history||[])].reverse()){
+      const ev=String(h.event||'').toLowerCase();
+      if(ev.startsWith('lb ')){
+        if(!k.lb)continue;
+        const {data:lbRow}=await sb.from('lockboxes').select('id').eq('organization_id',cloudOrgId).eq('lockbox_number',String(k.lb.number)).maybeSingle();
+        if(!lbRow)continue;
+        const action=ev.includes('returned')?'return':ev.includes('missing')?'missing':ev.includes('found')?'found':'assign';
+        const ins=await sb.from('lockbox_transactions').insert({
+          organization_id:cloudOrgId,lockbox_id:lbRow.id,property_id:propertyId,
+          action,action_date:h.date||TODAY,notes:h.detail||'',performed_by:cloudUser.id
+        }); if(ins.error)throw ins.error;
+      }else{
+        const action=ev.includes('returned')?'return':ev.includes('missing')?'missing':ev.includes('found')?'found':ev.includes('out')?'checkout':'location_change';
+        const outTo=action==='checkout'?(String(h.detail||'').replace(/^Checked out to\s*/i,'')||k.keyOut?.to||null):null;
+        const ins=await sb.from('key_transactions').insert({
+          organization_id:cloudOrgId,key_tag_id:keyRow.id,property_id:propertyId,
+          action,action_date:h.date||TODAY,out_to:outTo,notes:h.detail||'',performed_by:cloudUser.id
+        }); if(ins.error)throw ins.error;
+      }
+    }
+  }
+}
+function scheduleNormalizedSave(){
+  if(!normalizedReady||normalizedSaving||applyingRemote)return;
+  clearTimeout(normalizedSaveTimer);
+  normalizedSaveTimer=setTimeout(syncNormalizedChanges,400);
+}
+async function syncNormalizedChanges(){
+  if(!normalizedReady||normalizedSaving)return;
+  normalizedSaving=true;
+  try{
+    // Projects: only changed/new records are written.
+    for(const x of [...data]){
+      const current=stableJSON(stableProjectShape(x));
+      if(normalizedProjectBaseline.get(String(x.id))===current)continue;
+      const propertyId=await ensureProperty(x.address);
+      const row=projectToRow(x,propertyId);
+      if(/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(String(x.id))){
+        const {error}=await sb.from('projects').update(row).eq('id',x.id).eq('organization_id',cloudOrgId);
+        if(error)throw error;
+      }else{
+        const {data:created,error}=await sb.from('projects').insert(row).select('id').single();
+        if(error)throw error;
+        const oldId=String(x.id);x.id=created.id;
+        if(String(openId)===oldId)openId=created.id;
+        data.forEach(other=>{
+          if(String(other.sourceTurnId||'')===oldId)other.sourceTurnId=created.id;
+          if(String(other.linkedListingId||'')===oldId)other.linkedListingId=created.id;
+        });
+      }
+    }
+
+    // Key tags: only changed/new records are written.
+    for(const k of [...keys]){
+      const current=stableJSON(stableKeyShape(k));
+      const before=normalizedKeyBaseline.get(String(k.id));
+      if(before===current)continue;
+      const propertyId=await ensureProperty(k.address);
+      const keyRow={
+        organization_id:cloudOrgId,property_id:propertyId,tag_number:String(k.tag),
+        current_location:k.keyMissing?'missing':(k.keyOut?'checked_out':'office'),
+        checked_out_to:k.keyOut?.to||null,checked_out_at:k.keyOut?.date||null,
+        notes:k.notes||'',created_by:cloudUser.id
+      };
+      let keyId=String(k.id);
+      if(/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(keyId)){
+        const u=await sb.from('key_tags').update(keyRow).eq('id',keyId).eq('organization_id',cloudOrgId);
+        if(u.error)throw u.error;
+      }else{
+        const ins=await sb.from('key_tags').insert(keyRow).select('id').single();
+        if(ins.error)throw ins.error;
+        const oldId=keyId;k.id=ins.data.id;keyId=k.id;
+        if(String(keyOpenId)===oldId)keyOpenId=k.id;
+      }
+
+      // Append only newly-added visible history entries.
+      let oldHistory=[];
+      if(before){try{oldHistory=JSON.parse(before).history||[]}catch(_){}}
+      const oldSet=new Set(oldHistory.map(stableJSON));
+      const newHistory=(k.history||[]).filter(h=>!oldSet.has(stableJSON({date:h.date||'',event:h.event||'',detail:h.detail||''})));
+      for(const h of newHistory.reverse()){
+        const ev=String(h.event||'').toLowerCase();
+        if(ev.startsWith('lb '))continue; // lockbox transaction handled below
+        const action=ev.includes('returned')?'return':ev.includes('missing')?'missing':ev.includes('found')?'found':ev.includes('out')?'checkout':'location_change';
+        const outTo=action==='checkout'?(String(h.detail||'').replace(/^Checked out to\s*/i,'')||k.keyOut?.to||null):null;
+        const ins=await sb.from('key_transactions').insert({
+          organization_id:cloudOrgId,key_tag_id:keyId,property_id:propertyId,action,
+          action_date:h.date||TODAY,out_to:outTo,notes:h.detail||'',performed_by:cloudUser.id
+        });if(ins.error)throw ins.error;
+      }
+    }
+
+    // Lockbox inventory and assignments.
+    const desired=new Set(lbInventory.map(String));
+    const {data:dbLBs,error:lbErr}=await sb.from('lockboxes').select('*').eq('organization_id',cloudOrgId);
+    if(lbErr)throw lbErr;
+    const byNumber=new Map((dbLBs||[]).map(l=>[String(l.lockbox_number),l]));
+    for(const n of desired){
+      if(!byNumber.has(n)){
+        const ins=await sb.from('lockboxes').insert({
+          organization_id:cloudOrgId,lockbox_number:n,status:'available',created_by:cloudUser.id
+        });if(ins.error)throw ins.error;
+      }
+    }
+    for(const [n,l] of byNumber){
+      const owner=keys.find(k=>k.lb&&String(k.lb.number)===n);
+      if(!desired.has(n) && l.status==='available'){
+        const del=await sb.from('lockboxes').delete().eq('id',l.id);if(del.error)throw del.error;
+        continue;
+      }
+      const propertyId=owner?await ensureProperty(owner.address):null;
+      const wantedStatus=owner?(owner.lbMissing?'missing':'assigned'):'available';
+      const wantedProperty=owner?propertyId:null;
+      const wantedDate=owner?.lb?.outDate||null;
+      if(l.status!==wantedStatus || String(l.property_id||'')!==String(wantedProperty||'') || String(l.assigned_at||'')!==String(wantedDate||'')){
+        const up=await sb.from('lockboxes').update({
+          status:wantedStatus,property_id:wantedProperty,assigned_at:wantedDate
+        }).eq('id',l.id);if(up.error)throw up.error;
+
+        const action=owner?(owner.lbMissing?'missing':'assign'):'return';
+        const tx=await sb.from('lockbox_transactions').insert({
+          organization_id:cloudOrgId,lockbox_id:l.id,property_id:wantedProperty,
+          action,action_date:wantedDate||TODAY,
+          notes:owner?`LB #${n} assigned to property`:`LB #${n} returned to office`,
+          performed_by:cloudUser.id
+        });if(tx.error)throw tx.error;
+      }
+    }
+
+    // Reload authoritative rows after record-level writes.
+    const fresh=await fetchNormalized();
+    applyNormalized(fresh,{renderUI:false});
+    normalizedFingerprint=normalizedStateFingerprint();
+  }catch(err){
+    console.error('TurnFlow normalized save failed',err);
+    syncToast('Could not save a shared record');
+  }finally{
+    normalizedSaving=false;
+  }
+}
+async function startNormalizedMode(snapshot){
+  let rowsData=await fetchNormalized();
+  if(rowsData.projects.length===0 && rowsData.keyTags.length===0 && rowsData.properties.length===0){
+    await migrateWorkspaceSnapshotToNormalized(snapshot||{});
+    rowsData=await fetchNormalized();
+  }
+  applyNormalized(rowsData,{renderUI:true});
+  normalizedReady=true;
+
+  // Polling is intentionally record-based and conservative. It avoids
+  // whole-workspace overwrites and only rerenders when server records differ.
+  clearInterval(normalizedPollTimer);
+  normalizedPollTimer=setInterval(async()=>{
+    if(!normalizedReady||normalizedSaving||document.hidden)return;
+    try{
+      const fresh=await fetchNormalized();
+      const oldData=data,oldKeys=keys,oldLB=lbInventory;
+      // Build a temporary normalized view, compare fingerprint, then keep/apply.
+      const preservedProject=document.querySelector('#rows .row.open')?.dataset.id ?? openId;
+      const preservedKey=document.querySelector('#rows .key-row.open')?.dataset.kid ?? keyOpenId;
+      applyNormalized(fresh,{renderUI:false});
+      const fp=normalizedStateFingerprint();
+      if(fp!==normalizedFingerprint){
+        normalizedFingerprint=fp;
+        openId=(preservedProject!=null && data.some(x=>String(x.id)===String(preservedProject)))?preservedProject:null;
+        keyOpenId=(preservedKey!=null && keys.some(x=>String(x.id)===String(preservedKey)))?preservedKey:null;
+        render();
+        syncToast('Updated from shared records');
+      }
+    }catch(err){console.error('TurnFlow normalized refresh failed',err)}
+  },2000);
+}
 function authMsg(text,ok=false){
   const el=document.querySelector('#authMessage');
   if(!el)return;
@@ -421,6 +803,13 @@ async function connectWorkspace(orgId){
       syncToast('Updated from shared workspace');
     }
   },2000);
+
+  // v60: migrate once if needed, then use record-level Supabase tables.
+  await startNormalizedMode(row?.state || cloudSnapshot(cloudServerVersion));
+
+  // The legacy whole-workspace channel/poll is recovery-only after migration.
+  if(cloudChannel){await sb.removeChannel(cloudChannel);cloudChannel=null}
+  clearInterval(cloudPollTimer);cloudPollTimer=null;
 
   document.querySelector('#authGate').classList.add('hidden');
   document.querySelector('#userChip').textContent=initials(cloudUser.email);

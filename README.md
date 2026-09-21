@@ -1,4 +1,4 @@
-# TurnFlow v59 — Supabase connected build
+# TurnFlow v60 — Supabase connected build
 
 This build keeps the v50 interface and adds:
 - Supabase email/password authentication
@@ -66,3 +66,21 @@ The supplied screen recording showed the receiving browser collapsing its card e
 - No SQL changes required.
 
 Important: this protects deployment/reload from reverting shared data and prevents a stale whole-workspace save from overwriting a newer whole-workspace save. The next architectural migration should move individual Projects/Keys/transactions into the normalized Supabase tables so simultaneous edits can merge at record/field level instead of resolving at whole-workspace level.
+
+## v60 normalized shared-data migration
+TurnFlow now migrates the existing workspace snapshot into the normalized Supabase tables created by schema v1, then uses those tables as the live source of truth:
+
+- properties
+- projects
+- key_tags
+- lockboxes
+- key_transactions
+- lockbox_transactions
+
+The migration runs only when those normalized tables are empty for the organization. Existing v59 `workspace_state` is retained as a recovery snapshot and is not deleted.
+
+After migration, normal edits no longer save the entire office workspace. TurnFlow compares individual records and writes only changed/new Project or Key records, while lockbox/key movements append transaction history. A change to one Project therefore does not rewrite unrelated Projects or Keys.
+
+No additional SQL migration is required because schema v1 already created these tables, RLS policies, indexes, update triggers, and realtime publication.
+
+Keep v59 ZIP as the pre-normalization recovery checkpoint.
