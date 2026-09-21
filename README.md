@@ -1,4 +1,4 @@
-# TurnFlow v56 — Supabase connected build
+# TurnFlow v57 — Supabase connected build
 
 This build keeps the v50 interface and adds:
 - Supabase email/password authentication
@@ -44,3 +44,10 @@ Fixes project cards not opening after the v51/v52 string-safe ID migration. Exis
 
 ## v56 fix
 Remote/shared data updates no longer clear each browser's local open-card state. An open Project or Key card stays open while another browser updates shared data. If the underlying record genuinely disappears from the shared state, its open state is cleared. No SQL changes required.
+
+## v57 synchronization/UI-state fix
+The delivered v56 still contained the old `openId=null; keyOpenId=null` reset inside `applyCloudState`; this is now removed and verified in the final file.
+
+Each browser tab now has a unique client ID. Supabase echoes from the same tab are ignored, while updates from another browser (even using the same employee account) are applied. Remote updates preserve the receiving browser's open Project/Key card unless that record genuinely no longer exists.
+
+No SQL changes required.

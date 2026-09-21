@@ -223,6 +223,7 @@ const SUPABASE_PUBLISHABLE_KEY='sb_publishable_AXEUe6q44IWxy6HCjqRezw__iHdPdfV';
 const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 var cloudReady=false,cloudOrgId=null,cloudUser=null,cloudTimer=null,cloudChannel=null,signupMode=false,applyingRemote=false;
 var cloudPollTimer=null,lastCloudSavedAt=null,lastCloudUpdatedAt=null;
+const TURNFLOW_CLIENT_ID=(crypto.randomUUID?crypto.randomUUID():String(Date.now())+'-'+Math.random());
 
 function authMsg(text,ok=false){
   const el=document.querySelector('#authMessage');
@@ -246,7 +247,8 @@ function cloudSnapshot(){
     projects:data,
     keys:keys,
     lockboxes:lbInventory,
-    savedAt:new Date().toISOString()
+    savedAt:new Date().toISOString(),
+    clientId:TURNFLOW_CLIENT_ID
   };
 }
 function applyCloudState(state){
@@ -260,7 +262,12 @@ function applyCloudState(state){
   localStorage.setItem('whiteboardKeysV11',JSON.stringify(keys));
   localStorage.setItem('whiteboardLBInventoryV11',JSON.stringify(lbInventory));
   applyingRemote=false;
-  openId=null;keyOpenId=null;
+
+  // Keep each browser's UI state local. A remote data refresh must not
+  // collapse cards that are open in this browser.
+  if(openId!=null && !data.some(x=>String(x.id)===String(openId))) openId=null;
+  if(keyOpenId!=null && !keys.some(x=>String(x.id)===String(keyOpenId))) keyOpenId=null;
+
   render();
 }
 function syncToast(message){
@@ -309,10 +316,12 @@ async function connectWorkspace(orgId){
   cloudChannel=sb.channel('turnflow-workspace-'+orgId)
     .on('postgres_changes',{event:'UPDATE',schema:'public',table:'workspace_state'},payload=>{
       if(String(payload.new?.organization_id)!==String(cloudOrgId))return;
+      if(payload.new?.state?.clientId===TURNFLOW_CLIENT_ID){lastCloudUpdatedAt=payload.new.updated_at||lastCloudUpdatedAt;return;}
       if(payload.new?.state){lastCloudUpdatedAt=payload.new.updated_at||lastCloudUpdatedAt;applyCloudState(payload.new.state);syncToast('Updated from shared workspace');}
     })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'workspace_state'},payload=>{
       if(String(payload.new?.organization_id)!==String(cloudOrgId))return;
+      if(payload.new?.state?.clientId===TURNFLOW_CLIENT_ID){lastCloudUpdatedAt=payload.new.updated_at||lastCloudUpdatedAt;return;}
       if(payload.new?.state){lastCloudUpdatedAt=payload.new.updated_at||lastCloudUpdatedAt;applyCloudState(payload.new.state);syncToast('Updated from shared workspace');}
     })
     .subscribe(status=>{
@@ -329,6 +338,7 @@ async function connectWorkspace(orgId){
     const remoteUpdatedAt=latest.updated_at||'';
     if(remoteUpdatedAt && remoteUpdatedAt!==lastCloudUpdatedAt){
       lastCloudUpdatedAt=remoteUpdatedAt;
+      if(latest.state.clientId===TURNFLOW_CLIENT_ID)return;
       applyCloudState(latest.state);
       syncToast('Updated from shared workspace');
     }
