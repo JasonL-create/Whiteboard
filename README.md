@@ -1,4 +1,4 @@
-# TurnFlow v58 — Supabase connected build
+# TurnFlow v59 — Supabase connected build
 
 This build keeps the v50 interface and adds:
 - Supabase email/password authentication
@@ -54,3 +54,15 @@ No SQL changes required.
 
 ## v58 remote-render fix
 The supplied screen recording showed the receiving browser collapsing its card exactly when `Updated from shared workspace` appeared. v58 now reads the actually rendered open Project/Key card from the DOM before applying shared data and explicitly restores that browser-local UI state before rerendering. No SQL changes required.
+
+## v59 production-safety hardening
+- Supabase is authoritative whenever a workspace_state row already exists.
+- Existing localStorage can no longer automatically bootstrap/overwrite an existing shared workspace after a deployment or reload.
+- localStorage remains only a local cache/recovery copy.
+- The local-to-cloud bootstrap path runs only when the organization has NO workspace_state row at all.
+- Saves use optimistic concurrency against the database row's `updated_at`. If another browser has saved a newer version first, TurnFlow pulls the newer server state instead of overwriting it with a stale full-workspace snapshot.
+- Shared snapshots carry a monotonic `serverVersion`.
+- Existing realtime/open-card behavior from v58 is retained.
+- No SQL changes required.
+
+Important: this protects deployment/reload from reverting shared data and prevents a stale whole-workspace save from overwriting a newer whole-workspace save. The next architectural migration should move individual Projects/Keys/transactions into the normalized Supabase tables so simultaneous edits can merge at record/field level instead of resolving at whole-workspace level.

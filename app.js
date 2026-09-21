@@ -223,6 +223,7 @@ const SUPABASE_PUBLISHABLE_KEY='sb_publishable_AXEUe6q44IWxy6HCjqRezw__iHdPdfV';
 const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 var cloudReady=false,cloudOrgId=null,cloudUser=null,cloudTimer=null,cloudChannel=null,signupMode=false,applyingRemote=false;
 var cloudPollTimer=null,lastCloudSavedAt=null,lastCloudUpdatedAt=null;
+var cloudServerVersion=0;
 const TURNFLOW_CLIENT_ID=(crypto.randomUUID?crypto.randomUUID():String(Date.now())+'-'+Math.random());
 
 function authMsg(text,ok=false){
@@ -241,9 +242,10 @@ function initials(email){
   const s=String(email||'').split('@')[0].replace(/[^a-z0-9]+/gi,' ').trim();
   return (s.split(/\s+/).map(x=>x[0]).join('').slice(0,2)||'U').toUpperCase();
 }
-function cloudSnapshot(){
+function cloudSnapshot(nextVersion){
   return {
-    version:51,
+    schemaVersion:59,
+    serverVersion:Number(nextVersion||cloudServerVersion||0),
     projects:data,
     keys:keys,
     lockboxes:lbInventory,
@@ -291,16 +293,52 @@ function scheduleCloudSave(){
 }
 async function saveCloudState(){
   if(!cloudReady||!cloudOrgId||!cloudUser)return;
-  const snapshot=cloudSnapshot();
-  lastCloudSavedAt=snapshot.savedAt;
-  const {data:savedRow,error}=await sb.from('workspace_state').upsert({
-    organization_id:cloudOrgId,
+
+  // Never let a stale browser overwrite newer shared data.
+  const expectedUpdatedAt=lastCloudUpdatedAt;
+  const nextVersion=cloudServerVersion+1;
+  const snapshot=cloudSnapshot(nextVersion);
+  const now=new Date().toISOString();
+
+  let query=sb.from('workspace_state').update({
     state:snapshot,
     updated_by:cloudUser.id,
-    updated_at:new Date().toISOString()
-  },{onConflict:'organization_id'}).select('updated_at').single();
-  if(error){console.error('TurnFlow cloud save failed',error);syncToast('Could not save to shared workspace');}
-  else if(savedRow?.updated_at)lastCloudUpdatedAt=savedRow.updated_at;
+    updated_at:now
+  }).eq('organization_id',cloudOrgId);
+
+  if(expectedUpdatedAt)query=query.eq('updated_at',expectedUpdatedAt);
+
+  const {data:savedRows,error}=await query.select('updated_at,state');
+
+  if(error){
+    console.error('TurnFlow cloud save failed',error);
+    syncToast('Could not save to shared workspace');
+    return;
+  }
+
+  if(!savedRows || savedRows.length===0){
+    // Another browser saved first. Pull the authoritative copy rather than
+    // overwriting it with this browser's older full-workspace snapshot.
+    const {data:latest,error:latestError}=await sb.from('workspace_state')
+      .select('state,updated_at').eq('organization_id',cloudOrgId).maybeSingle();
+    if(latestError){
+      console.error('TurnFlow conflict refresh failed',latestError);
+      syncToast('Shared data changed — refresh needed');
+      return;
+    }
+    if(latest?.state){
+      lastCloudUpdatedAt=latest.updated_at||lastCloudUpdatedAt;
+      cloudServerVersion=Number(latest.state.serverVersion||cloudServerVersion||0);
+      applyCloudState(latest.state);
+      syncToast('Updated with newer shared data');
+    }
+    return;
+  }
+
+  const saved=savedRows[0];
+  lastCloudUpdatedAt=saved.updated_at||now;
+  lastCloudSavedAt=snapshot.savedAt;
+  cloudServerVersion=nextVersion;
 }
 async function loadMembership(){
   const {data:members,error}=await sb.from('organization_members')
@@ -311,26 +349,55 @@ async function loadMembership(){
 }
 async function connectWorkspace(orgId){
   cloudOrgId=orgId;
-  const {data:row,error}=await sb.from('workspace_state').select('state,updated_at').eq('organization_id',orgId).maybeSingle();
+  const {data:row,error}=await sb.from('workspace_state')
+    .select('state,updated_at').eq('organization_id',orgId).maybeSingle();
   if(error)throw error;
-  if(row?.updated_at)lastCloudUpdatedAt=row.updated_at;
-  cloudReady=true;
-  if(row?.state && Object.keys(row.state).length){
-    applyCloudState(row.state);
+
+  if(row){
+    // Existing workspace: Supabase is ALWAYS authoritative.
+    lastCloudUpdatedAt=row.updated_at||null;
+    cloudServerVersion=Number(row.state?.serverVersion||0);
+    cloudReady=true;
+    if(row.state)applyCloudState(row.state);
   }else{
-    await saveCloudState();
+    // One-time bootstrap only. This path exists solely for a brand-new
+    // workspace with no server row yet.
+    const initialVersion=1;
+    const snapshot=cloudSnapshot(initialVersion);
+    const {data:created,error:createError}=await sb.from('workspace_state').insert({
+      organization_id:orgId,
+      state:snapshot,
+      updated_by:cloudUser.id,
+      updated_at:new Date().toISOString()
+    }).select('state,updated_at').single();
+    if(createError)throw createError;
+    lastCloudUpdatedAt=created.updated_at;
+    lastCloudSavedAt=created.state?.savedAt||snapshot.savedAt;
+    cloudServerVersion=initialVersion;
+    cloudReady=true;
   }
+
   if(cloudChannel)await sb.removeChannel(cloudChannel);
   cloudChannel=sb.channel('turnflow-workspace-'+orgId)
     .on('postgres_changes',{event:'UPDATE',schema:'public',table:'workspace_state'},payload=>{
       if(String(payload.new?.organization_id)!==String(cloudOrgId))return;
       if(payload.new?.state?.clientId===TURNFLOW_CLIENT_ID){lastCloudUpdatedAt=payload.new.updated_at||lastCloudUpdatedAt;return;}
-      if(payload.new?.state){lastCloudUpdatedAt=payload.new.updated_at||lastCloudUpdatedAt;applyCloudState(payload.new.state);syncToast('Updated from shared workspace');}
+      if(payload.new?.state){
+        lastCloudUpdatedAt=payload.new.updated_at||lastCloudUpdatedAt;
+        cloudServerVersion=Number(payload.new.state.serverVersion||cloudServerVersion||0);
+        applyCloudState(payload.new.state);
+        syncToast('Updated from shared workspace');
+      }
     })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'workspace_state'},payload=>{
       if(String(payload.new?.organization_id)!==String(cloudOrgId))return;
       if(payload.new?.state?.clientId===TURNFLOW_CLIENT_ID){lastCloudUpdatedAt=payload.new.updated_at||lastCloudUpdatedAt;return;}
-      if(payload.new?.state){lastCloudUpdatedAt=payload.new.updated_at||lastCloudUpdatedAt;applyCloudState(payload.new.state);syncToast('Updated from shared workspace');}
+      if(payload.new?.state){
+        lastCloudUpdatedAt=payload.new.updated_at||lastCloudUpdatedAt;
+        cloudServerVersion=Number(payload.new.state.serverVersion||cloudServerVersion||0);
+        applyCloudState(payload.new.state);
+        syncToast('Updated from shared workspace');
+      }
     })
     .subscribe(status=>{
       if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'){
@@ -338,19 +405,23 @@ async function connectWorkspace(orgId){
         syncToast('Realtime connection interrupted');
       }
     });
+
   clearInterval(cloudPollTimer);
   cloudPollTimer=setInterval(async()=>{
     if(!cloudReady||!cloudOrgId||document.hidden)return;
-    const {data:latest,error:pollError}=await sb.from('workspace_state').select('state,updated_at').eq('organization_id',cloudOrgId).maybeSingle();
+    const {data:latest,error:pollError}=await sb.from('workspace_state')
+      .select('state,updated_at').eq('organization_id',cloudOrgId).maybeSingle();
     if(pollError||!latest?.state)return;
     const remoteUpdatedAt=latest.updated_at||'';
     if(remoteUpdatedAt && remoteUpdatedAt!==lastCloudUpdatedAt){
       lastCloudUpdatedAt=remoteUpdatedAt;
+      cloudServerVersion=Number(latest.state.serverVersion||cloudServerVersion||0);
       if(latest.state.clientId===TURNFLOW_CLIENT_ID)return;
       applyCloudState(latest.state);
       syncToast('Updated from shared workspace');
     }
   },2000);
+
   document.querySelector('#authGate').classList.add('hidden');
   document.querySelector('#userChip').textContent=initials(cloudUser.email);
 }
