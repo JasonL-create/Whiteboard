@@ -1,4 +1,4 @@
-# TurnFlow v72 — Supabase connected build
+# TurnFlow v73 — Supabase connected build
 
 This build keeps the v50 interface and adds:
 - Supabase email/password authentication
@@ -211,3 +211,6 @@ Aligned Projects/Keys controls, removed dropdown arrows while retaining hover/cl
 - Header and work-control surfaces are fully opaque; backdrop transparency is disabled.
 - Board receives fixed-row clearance so records scroll underneath rather than shifting the controls.
 - No data, Supabase, Key, Lockbox, project, or dialog behavior changed.
+
+## v73 fixed-shell geometry correction
+The v72 offset incorrectly treated screenshot pixels as CSS pixels. v73 fixes the full shell itself at the viewport top and pins the compact control row at the actual 186px desktop shell height. Both layers are fully opaque. No app/data logic changed.

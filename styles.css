@@ -401,3 +401,38 @@ body.auth-booting #appShell{visibility:hidden}
   .board{padding-top:74px !important}
   .page-title-inline{flex-basis:120px !important;width:120px !important;font-size:21px !important}
 }
+
+/* v73: fix shell geometry using CSS dimensions, not screenshot pixels */
+.fixed-shell{
+  position:fixed !important;
+  top:0 !important;
+  left:0 !important;
+  right:0 !important;
+  z-index:120 !important;
+  background:#fff !important;
+  opacity:1 !important;
+}
+.brand-row,.master-nav{background:#fff !important;opacity:1 !important}
+
+/* Desktop shell is 112px brand + 74px navigation = 186px. */
+.workspace{padding-top:186px !important}
+.page-hero{
+  position:fixed !important;
+  top:186px !important;
+  left:0 !important;
+  right:0 !important;
+  height:64px !important;
+  z-index:115 !important;
+  background:#f7f9fb !important;
+  opacity:1 !important;
+  backdrop-filter:none !important;
+  -webkit-backdrop-filter:none !important;
+}
+.board{padding-top:84px !important}
+
+@media(max-width:850px){
+  /* Mobile shell is 78px brand + 58px navigation = 136px. */
+  .workspace{padding-top:136px !important}
+  .page-hero{top:136px !important;height:58px !important}
+  .board{padding-top:74px !important}
+}
