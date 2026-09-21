@@ -310,3 +310,19 @@ body.auth-booting #appShell{visibility:hidden}
 .page-hero{top:186px}
 .key-available{font-weight:800;color:#16815f;letter-spacing:.02em}
 @media(max-width:850px){.page-hero{top:136px}}
+
+/* v71 aligned controls, hover menus, app dialogs */
+.page-title-inline{flex:0 0 164px;width:164px;margin-right:0}
+.nav-dropdown:hover .dropdown-panel{display:block}
+.tf-dialog-backdrop{position:fixed;inset:0;z-index:2000;background:rgba(18,34,52,.48);display:grid;place-items:center;padding:22px}
+.tf-dialog{width:min(560px,calc(100vw - 32px));background:#fff;border-radius:18px;box-shadow:0 24px 70px rgba(15,35,55,.24);overflow:hidden;color:#14273d}
+.tf-dialog-head{display:flex;align-items:center;justify-content:space-between;padding:24px 28px 14px}
+.tf-dialog-head h2{margin:0;font-size:26px}.tf-dialog-x{border:0;background:transparent;font-size:32px;color:#526274;cursor:pointer}
+.tf-dialog-message{padding:0 28px 18px;color:#526274;line-height:1.5}.tf-dialog-fields{padding:0 28px 24px;display:grid;gap:16px}
+.tf-dialog-field{display:grid;gap:7px}.tf-dialog-field span{font-size:13px;font-weight:800;color:#41536a;text-transform:uppercase}
+.tf-dialog-field input,.tf-dialog-field select{width:100%;box-sizing:border-box;height:48px;border:1px solid #cfd9e3;border-radius:10px;padding:0 14px;background:#fff;color:#14273d;font:inherit;outline:none}
+.tf-dialog-field input:focus,.tf-dialog-field select:focus{border-color:#1879bd;box-shadow:0 0 0 3px rgba(24,121,189,.12)}
+.tf-dialog-actions{display:flex;justify-content:flex-end;gap:12px;padding:18px 28px 24px;border-top:1px solid #e4e9ee}
+.tf-dialog-actions button{min-height:44px;border-radius:9px;padding:0 18px;font:inherit;font-weight:750;cursor:pointer}
+.tf-dialog-cancel{background:#fff;border:1px solid #cfd9e3;color:#33465c}.tf-dialog-confirm{background:#09689c;border:1px solid #09689c;color:#fff}
+@media(max-width:850px){.page-title-inline{flex-basis:132px;width:132px}}

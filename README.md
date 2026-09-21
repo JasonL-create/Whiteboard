@@ -1,4 +1,4 @@
-# TurnFlow v70 — Supabase connected build
+# TurnFlow v71 — Supabase connected build
 
 This build keeps the v50 interface and adds:
 - Supabase email/password authentication
@@ -201,3 +201,6 @@ skipped, and failed counts. No SQL changes required.
   AVAILABLE tag before the project is created.
 - Fixed the sticky Projects/Keys control row using the actual desktop/mobile shell heights.
 No SQL migration is required: schema v1 already defines `key_tags.property_id` as nullable.
+
+## v71 UI cleanup
+Aligned Projects/Keys controls, removed dropdown arrows while retaining hover/click menus, and replaced the main Key/Lockbox/project-key browser prompts with TurnFlow-styled dialogs. No schema changes.

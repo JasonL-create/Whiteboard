@@ -50,6 +50,26 @@ function renderRowsOnly(){
  bindBoardRows();
 }
 function bindBoardRows(){rows.querySelectorAll('.row-main').forEach(el=>el.onclick=()=>{const id=el.parentElement.dataset.id;openId=String(openId)===String(id)?null:id;render()});rows.querySelectorAll('.proc-control').forEach(el=>el.onchange=()=>{const x=data.find(y=>String(y.id)===el.closest('.row').dataset.id),p=x.process[+el.dataset.i];p.value=p.kind==='check'?el.checked:el.value;save();render()});rows.querySelectorAll('.proc-note').forEach(el=>el.oninput=()=>{const x=data.find(y=>String(y.id)===el.closest('.row').dataset.id),p=x.process[+el.dataset.i];p.note=el.value;save()});rows.querySelectorAll('.notes textarea').forEach(el=>el.oninput=()=>{data.find(y=>String(y.id)===el.closest('.row').dataset.id).notes=el.value;save()});rows.querySelectorAll('.meta-control').forEach(el=>el.onchange=()=>{const x=data.find(y=>String(y.id)===el.closest('.row').dataset.id);x[el.dataset.field]=el.value;save();render()});rows.querySelectorAll('.project-complete-check').forEach(el=>el.onchange=()=>{const x=data.find(y=>String(y.id)===el.closest('.row').dataset.id);x.completed=el.checked;if(x.completed)x.keepVisible=true;else x.keepVisible=true;save();render()});rows.querySelectorAll('.keep-visible-check').forEach(el=>el.onchange=()=>{const x=data.find(y=>String(y.id)===el.closest('.row').dataset.id);x.keepVisible=el.checked;if(x.completed&&!x.keepVisible){x.archived=true;x.archivedAt=TODAY;openId=null;}save();render()});rows.querySelectorAll('[data-action]').forEach(b=>b.onclick=e=>{e.stopPropagation();handleAction(b.dataset.action,b.closest('.row').dataset.id)})}
+
+function turnFlowDialog({title='TurnFlow',message='',fields=[],confirmText='OK',cancelText='Cancel',showCancel=true}={}){
+ return new Promise(resolve=>{
+  document.querySelector('.tf-dialog-backdrop')?.remove();
+  const wrap=document.createElement('div');wrap.className='tf-dialog-backdrop';
+  const fieldsHTML=fields.map((f,i)=>f.type==='select'
+   ?`<label class="tf-dialog-field"><span>${escapeHTML(f.label||'')}</span><select data-tf-field="${i}">${(f.options||[]).map(o=>`<option value="${escapeHTML(String(o.value))}">${escapeHTML(String(o.label))}</option>`).join('')}</select></label>`
+   :`<label class="tf-dialog-field"><span>${escapeHTML(f.label||'')}</span><input data-tf-field="${i}" value="${escapeHTML(String(f.value??''))}" placeholder="${escapeHTML(f.placeholder||'')}"></label>`).join('');
+  wrap.innerHTML=`<div class="tf-dialog"><div class="tf-dialog-head"><h2>${escapeHTML(title)}</h2><button class="tf-dialog-x">×</button></div>${message?`<div class="tf-dialog-message">${message}</div>`:''}<div class="tf-dialog-fields">${fieldsHTML}</div><div class="tf-dialog-actions">${showCancel?`<button class="tf-dialog-cancel">${escapeHTML(cancelText)}</button>`:''}<button class="tf-dialog-confirm">${escapeHTML(confirmText)}</button></div></div>`;
+  document.body.appendChild(wrap);
+  const finish=v=>{wrap.remove();resolve(v)};
+  wrap.querySelector('.tf-dialog-x').onclick=()=>finish(null);
+  wrap.querySelector('.tf-dialog-cancel')?.addEventListener('click',()=>finish(null));
+  wrap.querySelector('.tf-dialog-confirm').onclick=()=>finish(fields.map((f,i)=>wrap.querySelector(`[data-tf-field="${i}"]`).value));
+  wrap.onmousedown=e=>{if(e.target===wrap)finish(null)};
+  wrap.onkeydown=e=>{if(e.key==='Escape')finish(null)};
+  setTimeout(()=>wrap.querySelector('[data-tf-field="0"]')?.focus(),0);
+ });
+}
+async function tfAlert(title,message){await turnFlowDialog({title,message,showCancel:false})}
 function renderShell(){
  const {active,c,arch}=counts(), turns=active.filter(x=>x.type==='turn').length, listings=active.filter(x=>x.type==='listing').length;
  const q=searchValue().replace(/"/g,'&quot;');
@@ -58,13 +78,13 @@ function renderShell(){
  const hero=$('#pageHero');
  if(view==='keys'){
    const out=keys.filter(k=>k.keyOut||k.keyMissing).length,lbOut=keys.filter(k=>k.lb).length;
-   hero.innerHTML=`<div class="page-title-inline">KEYS</div><div class="context-left"><button id="allKeysFilter" class="filter-btn ${keyFilter==='all'?'active':''}">ALL <b>${keys.length}</b></button><button id="lbOutFilter" class="filter-btn ${keyFilter==='lb'?'active':''}">LB OUT <b>${lbOut}</b></button><button id="keysOutFilter" class="filter-btn ${keyFilter==='keys'?'active':''}">KEYS OUT <b>${out}</b></button><div class="nav-dropdown"><button class="filter-btn ${keySort!=='tag'?'active':''}">SORT BY <span>⌄</span></button><div class="dropdown-panel"><button data-key-sort="tag">TAG NUMBER</button><button data-key-sort="address">PROPERTY ADDRESS</button></div></div></div><div class="page-actions"><button id="addKeyTagHero" class="hero-add"><span>＋</span> Add Key Tag</button></div>`;
+   hero.innerHTML=`<div class="page-title-inline">KEYS</div><div class="context-left"><button id="allKeysFilter" class="filter-btn ${keyFilter==='all'?'active':''}">ALL <b>${keys.length}</b></button><button id="lbOutFilter" class="filter-btn ${keyFilter==='lb'?'active':''}">LB OUT <b>${lbOut}</b></button><button id="keysOutFilter" class="filter-btn ${keyFilter==='keys'?'active':''}">KEYS OUT <b>${out}</b></button><div class="nav-dropdown"><button class="filter-btn ${keySort!=='tag'?'active':''}">SORT BY</button><div class="dropdown-panel"><button data-key-sort="tag">TAG NUMBER</button><button data-key-sort="address">PROPERTY ADDRESS</button></div></div></div><div class="page-actions"><button id="addKeyTagHero" class="hero-add"><span>＋</span> Add Key Tag</button></div>`;
    $('#contextNav').innerHTML='';
  } else if(filter==='archived'){
    hero.innerHTML=`<div class="page-title-inline">ARCHIVE</div>`;
    $('#contextNav').innerHTML='';
  } else if(view==='board'){
-   hero.innerHTML=`<div class="page-title-inline">PROJECTS</div><div class="context-left"><button id="allNav" class="filter-btn ${filter==='all'?'active':''}">ALL <b>${active.length}</b></button><div class="nav-dropdown"><button id="turnsNav" class="filter-btn ${['turns','notice','active'].includes(filter)?'active':''}">TURNS <b>${turns}</b> <span>⌄</span></button><div class="dropdown-panel"><button data-f="notice">NOTICES <b>${c('notice')}</b></button><button data-f="active">ACTIVE <b>${c('active')}</b></button></div></div><div class="nav-dropdown"><button id="listingsNav" class="filter-btn ${['listings','listed','pending','rented'].includes(filter)?'active':''}">LISTINGS <b>${listings}</b> <span>⌄</span></button><div class="dropdown-panel"><button data-f="listed">LISTED <b>${c('listed')}</b></button><button data-f="pending">PENDING <b>${c('pending')}</b></button><button data-f="rented">RENTED <b>${c('rented')}</b></button></div></div><div class="nav-dropdown"><button class="filter-btn">SORT BY <span>⌄</span></button><div class="dropdown-panel"><button data-sort="move">MOVE OUT DATE</button><button data-sort="keys">KEYS RETURNED DATE</button><button data-sort="31">31 DAYS</button><button data-sort="listing">LISTING DAYS</button><button data-sort="default">DEFAULT</button></div></div></div><div class="page-actions"><button id="newProcessNav" class="hero-add"><span>＋</span> Add New</button></div>`;
+   hero.innerHTML=`<div class="page-title-inline">PROJECTS</div><div class="context-left"><button id="allNav" class="filter-btn ${filter==='all'?'active':''}">ALL <b>${active.length}</b></button><div class="nav-dropdown"><button id="turnsNav" class="filter-btn ${['turns','notice','active'].includes(filter)?'active':''}">TURNS <b>${turns}</b></button><div class="dropdown-panel"><button data-f="notice">NOTICES <b>${c('notice')}</b></button><button data-f="active">ACTIVE <b>${c('active')}</b></button></div></div><div class="nav-dropdown"><button id="listingsNav" class="filter-btn ${['listings','listed','pending','rented'].includes(filter)?'active':''}">LISTINGS <b>${listings}</b></button><div class="dropdown-panel"><button data-f="listed">LISTED <b>${c('listed')}</b></button><button data-f="pending">PENDING <b>${c('pending')}</b></button><button data-f="rented">RENTED <b>${c('rented')}</b></button></div></div><div class="nav-dropdown"><button class="filter-btn">SORT BY</button><div class="dropdown-panel"><button data-sort="move">MOVE OUT DATE</button><button data-sort="keys">KEYS RETURNED DATE</button><button data-sort="31">31 DAYS</button><button data-sort="listing">LISTING DAYS</button><button data-sort="default">DEFAULT</button></div></div></div><div class="page-actions"><button id="newProcessNav" class="hero-add"><span>＋</span> Add New</button></div>`;
    $('#contextNav').innerHTML='';
  } else {
    hero.innerHTML='';
@@ -114,16 +134,12 @@ const modal=$('#modal');function showModal(v){modal.classList.toggle('hidden',!v
  let assignedKey=keys.find(k=>k.address&&normalizeAddress(k.address)===normalizeAddress(address));
  if(!assignedKey){
    const available=keys.filter(k=>!k.address).slice().sort((a,b)=>String(a.tag).localeCompare(String(b.tag),undefined,{numeric:true}));
-   if(!available.length){
-     alert('This property does not have a Key Tag assigned, and there are no AVAILABLE Key Tags. Add an available Key Tag before starting this project.');
-     return;
-   }
-   const choice=prompt(`No Key Tag is assigned to ${address}.\n\nEnter an AVAILABLE Key Tag number to assign before creating this project:\n${available.slice(0,30).map(k=>'#'+k.tag).join(', ')}${available.length>30?' …':''}`);
-   if(choice===null)return;
-   assignedKey=available.find(k=>String(k.tag)===String(choice).trim().replace(/^#/,''));
-   if(!assignedKey){alert('That Key Tag is not currently AVAILABLE.');return}
+   if(!available.length){await tfAlert('Key Tag Required',`<strong>${escapeHTML(address)}</strong> does not have a Key Tag assigned, and there are no AVAILABLE Key Tags. Add an Available Key Tag before starting this project.`);return}
+   const choice=await turnFlowDialog({title:'Key Tag Required',message:`<strong>${escapeHTML(address)}</strong> does not have a Key Tag assigned. Select an Available tag before creating this project.`,fields:[{label:'Available Key Tag',type:'select',options:available.map(k=>({value:k.id,label:`Tag #${k.tag}`}))}],confirmText:'Assign Tag & Create Project'});
+   if(!choice)return;assignedKey=available.find(k=>String(k.id)===String(choice[0]));
+   if(!assignedKey){await tfAlert('Key Tag Unavailable','That Key Tag is no longer available.');return}
    const assigned=await assignAvailableKeyToProperty(assignedKey,address);
-   if(!assigned){alert('The Key Tag could not be assigned. The project was not created.');return}
+   if(!assigned){await tfAlert('Could Not Assign Key Tag','The Key Tag could not be assigned. The project was not created.');return}
  }
  const x={id:Date.now(),address,type,archived:false,completed:false,keepVisible:true,notes:'',process:type==='turn'?turnProcess():listingProcess()};
  if(type==='listing'){x.price='';x.securityDeposit='';x.sourceKeysReturned=''}
@@ -420,22 +436,17 @@ function bindKeyActions(){
       renderKeys();setTimeout(()=>refreshSharedKeys(false),100);
     };
     row.querySelector('.edit-key').onclick=async()=>{
-      const tag=prompt('Key tag number:',k.tag);if(tag===null)return;
-      const addr=prompt('Property address (leave blank to make this tag AVAILABLE):',k.address);if(addr===null)return;
-      const oldTag=k.tag,oldAddress=k.address||'',newAddress=addr.trim();
-      k.tag=tag.trim();k.address=newAddress;
-      const ok=await saveKeyRowDirect(k,{refresh:false});
-      if(!ok){k.tag=oldTag;k.address=oldAddress;renderKeys();return}
-      if(normalizeAddress(oldAddress)!==normalizeAddress(newAddress)){
-        try{await recordKeyPropertyHistory(k,{oldAddress,newAddress})}
-        catch(err){console.error(err);syncToast('Key saved; property history needs attention')}
-      }
+      const r=await turnFlowDialog({title:`Edit Key Tag #${k.tag}`,fields:[{label:'Key Tag Number',value:k.tag},{label:'Property Address',value:k.address||'',placeholder:'Leave blank for AVAILABLE'}],confirmText:'Save Changes'});if(!r)return;
+      const oldTag=k.tag,oldAddress=k.address||'',newAddress=r[1].trim();if(!r[0].trim()){await tfAlert('Key Tag Required','Enter a Key Tag number.');return}
+      k.tag=r[0].trim();k.address=newAddress;
+      const ok=await saveKeyRowDirect(k,{refresh:false});if(!ok){k.tag=oldTag;k.address=oldAddress;renderKeys();return}
+      if(normalizeAddress(oldAddress)!==normalizeAddress(newAddress)){try{await recordKeyPropertyHistory(k,{oldAddress,newAddress})}catch(err){console.error(err);syncToast('Key saved; property history needs attention')}}
       renderKeys();setTimeout(()=>refreshSharedKeys(false),100);
     };
   });
 }
-function manageLBInventory(){const raw=prompt('Lockbox numbers in inventory (comma separated):',lbInventory.join(', '));if(raw===null)return;lbInventory=[...new Set(raw.split(',').map(x=>x.trim().replace(/^#/, '')).filter(Boolean))];saveKeys();renderKeys()}
-async function addKeyTag(){const tag=prompt('Key tag number:');if(!tag)return;const address=prompt('Property address (leave blank for AVAILABLE):');if(address===null)return;const k={id:'k'+Date.now(),tag:tag.trim(),address:address.trim(),keyOut:null,keyMissing:false,lb:null,lbMissing:false,history:[],notes:''};keys.push(k);const ok=await saveKeyRowDirect(k,{refresh:false});if(!ok){keys=keys.filter(x=>x!==k);renderKeys();return}if(k.address){try{await recordKeyPropertyHistory(k,{oldAddress:'',newAddress:k.address})}catch(e){console.error(e)}}renderKeys();setTimeout(()=>refreshSharedKeys(false),100)}
+async function manageLBInventory(){const r=await turnFlowDialog({title:'Lockbox Inventory',message:'Add or edit lockbox numbers.',fields:[{label:'Lockbox Numbers',value:lbInventory.join(', '),placeholder:'e.g. 1, 2, 3'}],confirmText:'Save Inventory'});if(!r)return;lbInventory=[...new Set(r[0].split(',').map(x=>x.trim().replace(/^#/, '')).filter(Boolean))];saveKeys();renderKeys()}
+async function addKeyTag(){const r=await turnFlowDialog({title:'Add Key Tag',message:'Property is optional. Leave it blank to add this tag as AVAILABLE.',fields:[{label:'Key Tag Number',placeholder:'e.g. 25'},{label:'Property Address',placeholder:'Optional — leave blank for AVAILABLE'}],confirmText:'Add Key Tag'});if(!r)return;const tag=r[0].trim(),address=r[1].trim();if(!tag){await tfAlert('Key Tag Required','Enter a Key Tag number.');return}if(keys.some(k=>String(k.tag)===tag)){await tfAlert('Key Tag Already Exists',`Tag #${escapeHTML(tag)} is already in inventory.`);return}const k={id:'k'+Date.now(),tag,address,keyOut:null,keyMissing:false,lb:null,lbMissing:false,history:[],notes:''};keys.push(k);const ok=await saveKeyRowDirect(k,{refresh:false});if(!ok){keys=keys.filter(x=>x!==k);renderKeys();return}if(k.address){try{await recordKeyPropertyHistory(k,{oldAddress:'',newAddress:k.address})}catch(e){console.error(e)}}renderKeys();setTimeout(()=>refreshSharedKeys(false),100)}
 // Search is controlled from the fixed SEARCH dropdown.
 saveKeys();
 render();
