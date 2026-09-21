@@ -1,4 +1,4 @@
-# TurnFlow v66 — Supabase connected build
+# TurnFlow v67 — Supabase connected build
 
 This build keeps the v50 interface and adds:
 - Supabase email/password authentication
@@ -165,4 +165,12 @@ v66 removes that ambiguity for physical Key Tags:
 - Key realtime still reads only normalized Key tables.
 This gives physical Keys one current-state reader and one current-state writer, matching the Projects
 model much more closely. Lockbox actions remain on their existing normalized path for now.
+No SQL changes required.
+
+## v67 direct Lockbox actions
+The LB button was still using the older generic `saveKeys()`/batch path even though physical Keys had
+already moved to direct row writes in v66. LB checkout/return now use one direct `lockboxes` writer,
+append `lockbox_transactions` history only after the current-state write succeeds, and refresh from
+the authoritative normalized tables. Checkout uses a conditional `status = available` update so two
+browsers cannot assign the same lockbox. LB missing/found also writes directly.
 No SQL changes required.

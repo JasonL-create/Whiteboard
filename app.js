@@ -213,6 +213,52 @@ async function appendKeyHistoryDirect(k,h){
   });
   if(res.error)throw res.error;
 }
+
+async function saveLockboxAssignmentDirect(k,{returning=false,date=TODAY}={}){
+  if(!normalizedReady||!cloudOrgId||!cloudUser)return false;
+  try{
+    const propertyId=await ensureProperty(k.address);
+    if(returning){
+      const number=String(k.lb?.number||'');
+      if(!number)throw new Error('No lockbox is assigned to this Key Tag');
+      const res=await sb.from('lockboxes').update({
+        status:'available',property_id:null,assigned_at:null
+      }).eq('organization_id',cloudOrgId).eq('lockbox_number',number)
+        .select('id,lockbox_number').single();
+      if(res.error)throw res.error;
+      const tx=await sb.from('lockbox_transactions').insert({
+        organization_id:cloudOrgId,lockbox_id:res.data.id,property_id:propertyId,
+        action:'return',action_date:date||TODAY,
+        notes:`LB #${number} returned to office`,performed_by:cloudUser.id
+      });
+      if(tx.error)throw tx.error;
+      return true;
+    }
+
+    const number=String(k.lb?.number||'');
+    if(!number)throw new Error('Select a lockbox');
+    // Only an available box can be checked out. The conditional update prevents
+    // two browsers from assigning the same box at the same time.
+    const res=await sb.from('lockboxes').update({
+      status:k.lbMissing?'missing':'assigned',property_id:propertyId,
+      assigned_at:k.lb.outDate||date||TODAY
+    }).eq('organization_id',cloudOrgId).eq('lockbox_number',number).eq('status','available')
+      .select('id,lockbox_number,status,property_id,assigned_at');
+    if(res.error)throw res.error;
+    if(!res.data?.length)throw new Error(`LB #${number} is no longer available`);
+    const tx=await sb.from('lockbox_transactions').insert({
+      organization_id:cloudOrgId,lockbox_id:res.data[0].id,property_id:propertyId,
+      action:'assign',action_date:k.lb.outDate||date||TODAY,
+      notes:`LB #${number} assigned to property`,performed_by:cloudUser.id
+    });
+    if(tx.error)throw tx.error;
+    return true;
+  }catch(err){
+    console.error('TurnFlow direct Lockbox save failed',err);
+    syncToast(err?.message||'Lockbox did not save');
+    return false;
+  }
+}
 function bindKeyActions(){
   rows.querySelectorAll('.key-row').forEach(row=>{
     const k=keys.find(x=>String(x.id)===String(row.dataset.kid));
@@ -268,8 +314,22 @@ function bindKeyActions(){
       if(ok){try{await appendKeyHistoryDirect(k,h)}catch(e){console.error(e)}}
       renderKeys();setTimeout(()=>refreshSharedKeys(false),100);
     };
-    lbCheckout.onclick=()=>{if(lbCheckout.disabled)return;const n=lbSelect.value,d=lbOutDate.value;k.lb={number:n,outDate:d};k.lbMissing=false;logKey(k,'LB out',`LB #${n} assigned to property`,d);saveKeys(k);renderKeys()};
-    lbReturn.onclick=()=>{if(lbReturn.disabled)return;const d=lbReturnDate.value;if(k.lb)logKey(k,'LB returned',`LB #${k.lb.number} returned to office`,d);k.lb=null;k.lbMissing=false;saveKeys(k);renderKeys()};
+    lbCheckout.onclick=async()=>{
+      if(lbCheckout.disabled)return;
+      const n=lbSelect.value,d=lbOutDate.value;
+      k.lb={number:n,outDate:d};k.lbMissing=false;
+      const ok=await saveLockboxAssignmentDirect(k,{date:d});
+      if(!ok){k.lb=null;await refreshSharedKeys(false);renderKeys();return}
+      renderKeys();setTimeout(()=>refreshSharedKeys(false),100);
+    };
+    lbReturn.onclick=async()=>{
+      if(lbReturn.disabled||!k.lb)return;
+      const d=lbReturnDate.value,previous={...k.lb};
+      const ok=await saveLockboxAssignmentDirect(k,{returning:true,date:d});
+      if(!ok){await refreshSharedKeys(false);renderKeys();return}
+      k.lb=null;k.lbMissing=false;
+      renderKeys();setTimeout(()=>refreshSharedKeys(false),100);
+    };
     row.querySelector('.key-missing').onclick=async()=>{
       k.keyMissing=!k.keyMissing;
       const h={date:TODAY,event:k.keyMissing?'Key missing':'Key found',detail:k.keyMissing?'Key marked missing':'Key located'};
@@ -278,7 +338,23 @@ function bindKeyActions(){
       if(ok){try{await appendKeyHistoryDirect(k,h)}catch(e){console.error(e)}}
       renderKeys();setTimeout(()=>refreshSharedKeys(false),100);
     };
-    row.querySelector('.lb-missing').onclick=()=>{k.lbMissing=!k.lbMissing;logKey(k,k.lbMissing?'LB missing':'LB found',k.lbMissing?`Lockbox marked missing${k.lb?' — LB #'+k.lb.number:''}`:'Lockbox located',TODAY);saveKeys(k);renderKeys()};
+    row.querySelector('.lb-missing').onclick=async()=>{
+      if(!k.lb)return;
+      const next=!k.lbMissing,number=String(k.lb.number);
+      const status=next?'missing':'assigned';
+      const res=await sb.from('lockboxes').update({status})
+        .eq('organization_id',cloudOrgId).eq('lockbox_number',number)
+        .select('id').single();
+      if(res.error){console.error(res.error);syncToast(`LB #${number} did not save`);return}
+      k.lbMissing=next;
+      const tx=await sb.from('lockbox_transactions').insert({
+        organization_id:cloudOrgId,lockbox_id:res.data.id,property_id:await ensureProperty(k.address),
+        action:next?'missing':'found',action_date:TODAY,
+        notes:next?`LB #${number} marked missing`:`LB #${number} located`,performed_by:cloudUser.id
+      });
+      if(tx.error)console.error(tx.error);
+      renderKeys();setTimeout(()=>refreshSharedKeys(false),100);
+    };
     row.querySelector('.edit-key').onclick=async()=>{
       const tag=prompt('Key tag number:',k.tag);if(tag===null)return;
       const addr=prompt('Property address:',k.address);if(addr===null)return;
