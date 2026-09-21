@@ -253,6 +253,13 @@ function cloudSnapshot(){
 }
 function applyCloudState(state){
   if(!state)return;
+
+  // Preserve what is ACTUALLY open in this browser before shared data is replaced.
+  const visibleProject=document.querySelector('#rows .row.open');
+  const visibleKey=document.querySelector('#rows .key-row.open');
+  const preservedProjectId=visibleProject?.dataset.id ?? openId;
+  const preservedKeyId=visibleKey?.dataset.kid ?? keyOpenId;
+
   if(state.savedAt)lastCloudSavedAt=state.savedAt;
   applyingRemote=true;
   if(Array.isArray(state.projects))data=state.projects;
@@ -263,10 +270,11 @@ function applyCloudState(state){
   localStorage.setItem('whiteboardLBInventoryV11',JSON.stringify(lbInventory));
   applyingRemote=false;
 
-  // Keep each browser's UI state local. A remote data refresh must not
-  // collapse cards that are open in this browser.
-  if(openId!=null && !data.some(x=>String(x.id)===String(openId))) openId=null;
-  if(keyOpenId!=null && !keys.some(x=>String(x.id)===String(keyOpenId))) keyOpenId=null;
+  // UI state belongs to this browser, not to the shared workspace.
+  openId=(preservedProjectId!=null && data.some(x=>String(x.id)===String(preservedProjectId)))
+    ? preservedProjectId : null;
+  keyOpenId=(preservedKeyId!=null && keys.some(x=>String(x.id)===String(preservedKeyId)))
+    ? preservedKeyId : null;
 
   render();
 }

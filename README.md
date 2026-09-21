@@ -1,4 +1,4 @@
-# TurnFlow v57 — Supabase connected build
+# TurnFlow v58 — Supabase connected build
 
 This build keeps the v50 interface and adds:
 - Supabase email/password authentication
@@ -51,3 +51,6 @@ The delivered v56 still contained the old `openId=null; keyOpenId=null` reset in
 Each browser tab now has a unique client ID. Supabase echoes from the same tab are ignored, while updates from another browser (even using the same employee account) are applied. Remote updates preserve the receiving browser's open Project/Key card unless that record genuinely no longer exists.
 
 No SQL changes required.
+
+## v58 remote-render fix
+The supplied screen recording showed the receiving browser collapsing its card exactly when `Updated from shared workspace` appeared. v58 now reads the actually rendered open Project/Key card from the DOM before applying shared data and explicitly restores that browser-local UI state before rerendering. No SQL changes required.
