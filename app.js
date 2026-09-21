@@ -28,7 +28,7 @@ function state(x){if(x.archived)return'archived';if(x.completed)return'completed
 function turnDays(x){const k=get(x,'Keys Returned');if(!k)return 0;return diffDays(k,get(x,'Mailed Disposition')||TODAY,true)}
 function listingDays(x){const d=get(x,'Listed');if(!d)return 0;return diffDays(d,get(x,'Signed Lease Received')||TODAY,false)}
 function totalFromKeys(x){return x.sourceKeysReturned?diffDays(x.sourceKeysReturned,get(x,'Key Pickup')||TODAY,false):null}
-function save(){localStorage.setItem('whiteboardData',JSON.stringify(data));if(normalizedReady)scheduleNormalizedSave();else scheduleCloudSave()}
+function save(){localStorage.setItem('whiteboardData',JSON.stringify(data));if(normalizedReady){localEditGeneration++;scheduleNormalizedSave()}else scheduleCloudSave()}
 function field(l,v){return `<div class="status-field"><div class="label">${l}</div><div class="value">${v}</div></div>`}
 function turnTypeText(x){return x.completed?'TURN - COMPLETED':(get(x,'Keys Returned')?'TURN - ACTIVE':'TURN')}
 function turnTypeClass(x){return x.completed?'turn-completed':(get(x,'Keys Returned')?'turn-active':'turn')}
@@ -113,6 +113,7 @@ function saveKeys(changedKey=null){
   // Supabase state variables have been initialized. Never touch normalized
   // tracking until normalized mode is actually ready.
   if(normalizedReady){
+    localEditGeneration++;
     if(changedKey)dirtyKeyIds.add(String(changedKey.id));
     else{
       keys.forEach(k=>{
@@ -181,7 +182,7 @@ function bindKeyActions(){rows.querySelectorAll('.key-row').forEach(row=>{const 
   notes.onblur=async()=>{
     persistKeyNotes();
     // Flush immediately on blur so a refresh/navigation cannot outrun debounce.
-    clearTimeout(normalizedSaveTimer);
+    clearTimeout(normalizedSaveTimer);normalizedSaveTimer=null;
     if(normalizedReady&&!normalizedSaving)await syncNormalizedChanges();
   };
 }const keyOutDate=row.querySelector('.key-out-date'),outTo=row.querySelector('.key-out-to'),keyCheckout=row.querySelector('.key-checkout'),keyReturnDate=row.querySelector('.key-return-date'),keyReturn=row.querySelector('.key-return'),lbOutDate=row.querySelector('.lb-out-date'),lbSelect=row.querySelector('.lb-select'),lbCheckout=row.querySelector('.lb-checkout'),lbReturnDate=row.querySelector('.lb-return-date'),lbReturn=row.querySelector('.lb-return');const updateButtons=()=>{keyCheckout.disabled=!!k.keyOut||!keyOutDate.value||!outTo.value.trim();keyReturn.disabled=!k.keyOut||!keyReturnDate.value;lbCheckout.disabled=!!k.lb||!lbOutDate.value||!lbSelect.value;lbReturn.disabled=!k.lb||!lbReturnDate.value};[keyOutDate,outTo,keyReturnDate,lbOutDate,lbSelect,lbReturnDate].forEach(el=>{el.addEventListener('input',updateButtons);el.addEventListener('change',updateButtons)});updateButtons();keyCheckout.onclick=()=>{if(keyCheckout.disabled)return;k.keyOut={date:keyOutDate.value,to:outTo.value.trim()};k.keyMissing=false;logKey(k,'Key out',`Checked out to ${k.keyOut.to}`,k.keyOut.date);saveKeys(k);renderKeys()};keyReturn.onclick=()=>{if(keyReturn.disabled)return;const d=keyReturnDate.value;logKey(k,'Key returned',k.keyOut?`Returned from ${k.keyOut.to}`:'Returned',d);k.keyOut=null;k.keyMissing=false;saveKeys(k);renderKeys()};lbCheckout.onclick=()=>{if(lbCheckout.disabled)return;const n=lbSelect.value,d=lbOutDate.value;k.lb={number:n,outDate:d};k.lbMissing=false;logKey(k,'LB out',`LB #${n} assigned to property`,d);saveKeys(k);renderKeys()};lbReturn.onclick=()=>{if(lbReturn.disabled)return;const d=lbReturnDate.value;if(k.lb)logKey(k,'LB returned',`LB #${k.lb.number} returned to office`,d);k.lb=null;k.lbMissing=false;saveKeys(k);renderKeys()};row.querySelector('.key-missing').onclick=()=>{k.keyMissing=!k.keyMissing;logKey(k,k.keyMissing?'Key missing':'Key found',k.keyMissing?'Key marked missing':'Key located',TODAY);saveKeys(k);renderKeys()};row.querySelector('.lb-missing').onclick=()=>{k.lbMissing=!k.lbMissing;logKey(k,k.lbMissing?'LB missing':'LB found',k.lbMissing?`Lockbox marked missing${k.lb?' — LB #'+k.lb.number:''}`:'Lockbox located',TODAY);saveKeys(k);renderKeys()};row.querySelector('.edit-key').onclick=()=>{const tag=prompt('Key tag number:',k.tag);if(tag===null)return;const addr=prompt('Property address:',k.address);if(addr===null)return;k.tag=tag.trim();k.address=addr.trim();saveKeys(k);renderKeys()}})}
@@ -260,6 +261,7 @@ var normalizedReady=false,normalizedSaveTimer=null,normalizedPollTimer=null,norm
 var normalizedProjectBaseline=new Map(),normalizedKeyBaseline=new Map(),normalizedLBSet=new Set();
 var propertyIdByNorm=new Map(),normalizedFingerprint='';
 var dirtyKeyIds=new Set();
+var localEditGeneration=0;
 
 const TURNFLOW_CLIENT_ID=(crypto.randomUUID?crypto.randomUUID():String(Date.now())+'-'+Math.random());
 
@@ -495,14 +497,21 @@ function scheduleNormalizedSave(){
   if(!normalizedReady||applyingRemote)return;
   if(normalizedSaving){normalizedSavePending=true;return}
   clearTimeout(normalizedSaveTimer);
-  normalizedSaveTimer=setTimeout(syncNormalizedChanges,400);
+  normalizedSaveTimer=setTimeout(()=>{normalizedSaveTimer=null;syncNormalizedChanges()},400);
 }
 async function syncNormalizedChanges(){
   if(!normalizedReady||normalizedSaving)return;
   normalizedSaving=true;
+  const saveGeneration=localEditGeneration;
+
+  // Immutable snapshots: async database work must never read a key/project object
+  // that the user can continue mutating while this save is in flight.
+  const projectCopies=data.map(x=>JSON.parse(JSON.stringify(x)));
+  const keyCopies=keys.map(k=>JSON.parse(JSON.stringify(k)));
+  const lbCopies=lbInventory.map(String);
+
   try{
-    // Projects: only changed/new records are written.
-    for(const x of [...data]){
+    for(const x of projectCopies){
       const current=stableJSON(stableProjectShape(x));
       if(normalizedProjectBaseline.get(String(x.id))===current)continue;
       const propertyId=await ensureProperty(x.address);
@@ -510,23 +519,30 @@ async function syncNormalizedChanges(){
       if(/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(String(x.id))){
         const {error}=await sb.from('projects').update(row).eq('id',x.id).eq('organization_id',cloudOrgId);
         if(error)throw error;
+        normalizedProjectBaseline.set(String(x.id),current);
       }else{
         const {data:created,error}=await sb.from('projects').insert(row).select('id').single();
         if(error)throw error;
-        const oldId=String(x.id);x.id=created.id;
-        if(String(openId)===oldId)openId=created.id;
-        data.forEach(other=>{
-          if(String(other.sourceTurnId||'')===oldId)other.sourceTurnId=created.id;
-          if(String(other.linkedListingId||'')===oldId)other.linkedListingId=created.id;
-        });
+        const live=data.find(y=>String(y.id)===String(x.id));
+        if(live){
+          const oldId=String(live.id);live.id=created.id;
+          if(String(openId)===oldId)openId=created.id;
+          data.forEach(other=>{
+            if(String(other.sourceTurnId||'')===oldId)other.sourceTurnId=created.id;
+            if(String(other.linkedListingId||'')===oldId)other.linkedListingId=created.id;
+          });
+          normalizedProjectBaseline.delete(oldId);
+          normalizedProjectBaseline.set(String(created.id),stableJSON(stableProjectShape(live)));
+        }
       }
     }
 
-    // Key tags: only changed/new records are written.
-    for(const k of [...keys]){
+    for(const k of keyCopies){
+      const originalId=String(k.id);
       const current=stableJSON(stableKeyShape(k));
-      const before=normalizedKeyBaseline.get(String(k.id));
-      if(before===current && !dirtyKeyIds.has(String(k.id)))continue;
+      const before=normalizedKeyBaseline.get(originalId);
+      if(before===current && !dirtyKeyIds.has(originalId))continue;
+
       const propertyId=await ensureProperty(k.address);
       const keyRow={
         organization_id:cloudOrgId,property_id:propertyId,tag_number:String(k.tag),
@@ -534,27 +550,44 @@ async function syncNormalizedChanges(){
         checked_out_to:k.keyOut?.to||null,checked_out_at:k.keyOut?.date||null,
         notes:k.notes||'',created_by:cloudUser.id
       };
-      let keyId=String(k.id);
+      let keyId=originalId;
       if(/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(keyId)){
-        const u=await sb.from('key_tags').update(keyRow).eq('id',keyId).eq('organization_id',cloudOrgId);
+        const u=await sb.from('key_tags').update(keyRow).eq('id',keyId).eq('organization_id',cloudOrgId).select('id,notes,current_location,checked_out_to,checked_out_at');
         if(u.error)throw u.error;
+        if(!u.data?.length)throw new Error(`Key ${k.tag} was not updated in shared storage`);
       }else{
         const ins=await sb.from('key_tags').insert(keyRow).select('id').single();
         if(ins.error)throw ins.error;
-        const oldId=keyId;k.id=ins.data.id;keyId=k.id;
-        if(String(keyOpenId)===oldId)keyOpenId=k.id;
-        dirtyKeyIds.delete(oldId);
+        keyId=ins.data.id;
+        const live=keys.find(y=>String(y.id)===originalId);
+        if(live){
+          live.id=keyId;
+          if(String(keyOpenId)===originalId)keyOpenId=keyId;
+        }
+        dirtyKeyIds.delete(originalId);
+        normalizedKeyBaseline.delete(originalId);
       }
-      dirtyKeyIds.delete(String(k.id));
 
-      // Append only newly-added visible history entries.
+      // Only clear dirty/baseline if the live record is still exactly the version
+      // that was just written. If user typed again, the newer version stays dirty.
+      const live=keys.find(y=>String(y.id)===String(keyId));
+      const liveShape=live?stableJSON(stableKeyShape(live)):null;
+      const savedShape={...stableKeyShape(k),id:String(keyId)};
+      const savedJSON=stableJSON(savedShape);
+      normalizedKeyBaseline.set(String(keyId),savedJSON);
+      if(liveShape===savedJSON)dirtyKeyIds.delete(String(keyId));
+      else{
+        dirtyKeyIds.add(String(keyId));
+        normalizedSavePending=true;
+      }
+
       let oldHistory=[];
       if(before){try{oldHistory=JSON.parse(before).history||[]}catch(_){}}
       const oldSet=new Set(oldHistory.map(stableJSON));
       const newHistory=(k.history||[]).filter(h=>!oldSet.has(stableJSON({date:h.date||'',event:h.event||'',detail:h.detail||''})));
       for(const h of newHistory.reverse()){
         const ev=String(h.event||'').toLowerCase();
-        if(ev.startsWith('lb '))continue; // lockbox transaction handled below
+        if(ev.startsWith('lb '))continue;
         const action=ev.includes('returned')?'return':ev.includes('missing')?'missing':ev.includes('found')?'found':ev.includes('out')?'checkout':'location_change';
         const outTo=action==='checkout'?(String(h.detail||'').replace(/^Checked out to\s*/i,'')||k.keyOut?.to||null):null;
         const ins=await sb.from('key_transactions').insert({
@@ -564,8 +597,8 @@ async function syncNormalizedChanges(){
       }
     }
 
-    // Lockbox inventory and assignments.
-    const desired=new Set(lbInventory.map(String));
+    // Lockbox writes use the immutable snapshot captured with this save.
+    const desired=new Set(lbCopies);
     const {data:dbLBs,error:lbErr}=await sb.from('lockboxes').select('*').eq('organization_id',cloudOrgId);
     if(lbErr)throw lbErr;
     const byNumber=new Map((dbLBs||[]).map(l=>[String(l.lockbox_number),l]));
@@ -577,7 +610,7 @@ async function syncNormalizedChanges(){
       }
     }
     for(const [n,l] of byNumber){
-      const owner=keys.find(k=>k.lb&&String(k.lb.number)===n);
+      const owner=keyCopies.find(k=>k.lb&&String(k.lb.number)===n);
       if(!desired.has(n) && l.status==='available'){
         const del=await sb.from('lockboxes').delete().eq('id',l.id);if(del.error)throw del.error;
         continue;
@@ -590,7 +623,6 @@ async function syncNormalizedChanges(){
         const up=await sb.from('lockboxes').update({
           status:wantedStatus,property_id:wantedProperty,assigned_at:wantedDate
         }).eq('id',l.id);if(up.error)throw up.error;
-
         const action=owner?(owner.lbMissing?'missing':'assign'):'return';
         const tx=await sb.from('lockbox_transactions').insert({
           organization_id:cloudOrgId,lockbox_id:l.id,property_id:wantedProperty,
@@ -601,25 +633,29 @@ async function syncNormalizedChanges(){
       }
     }
 
-    // Reload authoritative rows after record-level writes.
-    const fresh=await fetchNormalized();
-    applyNormalized(fresh,{renderUI:false});
+    localStorage.setItem('whiteboardData',JSON.stringify(data));
+    localStorage.setItem('whiteboardKeysV11',JSON.stringify(keys));
+    localStorage.setItem('whiteboardLBInventoryV11',JSON.stringify(lbInventory));
+
+    // Do NOT fetch/apply the server here. v63 did that and could replace a
+    // newer Key edit with the just-saved older snapshot.
     normalizedFingerprint=normalizedStateFingerprint();
   }catch(err){
     console.error('TurnFlow normalized save failed',err);
     syncToast('Could not save a shared record');
   }finally{
     normalizedSaving=false;
-    if(normalizedSavePending){
+    if(normalizedSavePending||localEditGeneration!==saveGeneration||dirtyKeyIds.size){
       normalizedSavePending=false;
       clearTimeout(normalizedSaveTimer);
-      normalizedSaveTimer=setTimeout(syncNormalizedChanges,50);
+      normalizedSaveTimer=setTimeout(()=>{normalizedSaveTimer=null;syncNormalizedChanges()},75);
     }
   }
 }
+
 async function refreshNormalizedFromServer(showMessage=true){
   if(!normalizedReady)return;
-  if(normalizedSaving||dirtyKeyIds.size){
+  if(normalizedSaving||dirtyKeyIds.size||normalizedSaveTimer){
     clearTimeout(normalizedRefreshTimer);
     normalizedRefreshTimer=setTimeout(()=>refreshNormalizedFromServer(showMessage),250);
     return

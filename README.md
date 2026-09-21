@@ -1,4 +1,4 @@
-# TurnFlow v63 — Supabase connected build
+# TurnFlow v64 — Supabase connected build
 
 This build keeps the v50 interface and adds:
 - Supabase email/password authentication
@@ -111,4 +111,20 @@ v63 gates all normalized Key tracking behind `normalizedReady`. The initial lega
 uses the existing cloud bootstrap path; after authentication/normalization completes, Key edits use
 the v62 record-level dirty tracking and persistence fixes.
 
+No SQL changes required.
+
+## v64 Keys stale-state/race fix
+The symptom where the first Key Note change propagated but later changes reverted was caused by
+the normalized save routine re-fetching and applying the server immediately after every async save.
+If the user typed again while that save was in flight, the older server result could replace the
+newer local text and reset the Key baseline.
+
+v64:
+- snapshots Project/Key/Lockbox data before each async save;
+- never applies a post-save server reload over newer local edits;
+- tracks a local edit generation across in-flight saves;
+- only clears a Key's dirty flag if the live Key still exactly matches the version written;
+- queues another save if a newer edit occurred during the previous save;
+- requires a key_tags UPDATE to return the updated row, so a silent zero-row update is treated as an error;
+- keeps realtime refreshes deferred while a local save is queued/in flight.
 No SQL changes required.
