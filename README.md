@@ -1,4 +1,4 @@
-# TurnFlow v55 — Supabase connected build
+# TurnFlow v56 — Supabase connected build
 
 This build keeps the v50 interface and adds:
 - Supabase email/password authentication
@@ -41,3 +41,6 @@ Fixes project cards not opening after the v51/v52 string-safe ID migration. Exis
 - Poll fallback now compares Supabase row `updated_at` instead of a client-generated snapshot timestamp.
 - Authentication uses an explicit booting state so neither the login screen nor app is painted until Supabase has resolved the stored session.
 - No SQL changes required.
+
+## v56 fix
+Remote/shared data updates no longer clear each browser's local open-card state. An open Project or Key card stays open while another browser updates shared data. If the underlying record genuinely disappears from the shared state, its open state is cleared. No SQL changes required.
