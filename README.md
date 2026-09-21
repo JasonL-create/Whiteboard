@@ -1,4 +1,4 @@
-# TurnFlow v54 — Supabase connected build
+# TurnFlow v55 — Supabase connected build
 
 This build keeps the v50 interface and adds:
 - Supabase email/password authentication
@@ -35,3 +35,9 @@ Fixes project cards not opening after the v51/v52 string-safe ID migration. Exis
 - Strengthens Supabase realtime handling by subscribing to workspace-state INSERT/UPDATE events and filtering the organization client-side.
 - Adds a 2-second shared-state fallback check while the page is visible, so another open browser receives changes even if a websocket subscription is delayed or blocked.
 - No additional Supabase SQL migration is required.
+
+## v55 fixes
+- Fixes live sync when two browser windows are signed into the SAME TurnFlow account. v54 incorrectly ignored realtime events whose `updated_by` matched the current user, which also ignored changes from that user's other browser.
+- Poll fallback now compares Supabase row `updated_at` instead of a client-generated snapshot timestamp.
+- Authentication uses an explicit booting state so neither the login screen nor app is painted until Supabase has resolved the stored session.
+- No SQL changes required.

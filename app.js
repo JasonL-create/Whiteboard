@@ -222,7 +222,7 @@ const SUPABASE_URL='https://irpupfvsbbqmoouwbcjh.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_AXEUe6q44IWxy6HCjqRezw__iHdPdfV';
 const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 var cloudReady=false,cloudOrgId=null,cloudUser=null,cloudTimer=null,cloudChannel=null,signupMode=false,applyingRemote=false;
-var cloudPollTimer=null,lastCloudSavedAt=null;
+var cloudPollTimer=null,lastCloudSavedAt=null,lastCloudUpdatedAt=null;
 
 function authMsg(text,ok=false){
   const el=document.querySelector('#authMessage');
@@ -278,13 +278,14 @@ async function saveCloudState(){
   if(!cloudReady||!cloudOrgId||!cloudUser)return;
   const snapshot=cloudSnapshot();
   lastCloudSavedAt=snapshot.savedAt;
-  const {error}=await sb.from('workspace_state').upsert({
+  const {data:savedRow,error}=await sb.from('workspace_state').upsert({
     organization_id:cloudOrgId,
     state:snapshot,
     updated_by:cloudUser.id,
     updated_at:new Date().toISOString()
-  },{onConflict:'organization_id'});
+  },{onConflict:'organization_id'}).select('updated_at').single();
   if(error){console.error('TurnFlow cloud save failed',error);syncToast('Could not save to shared workspace');}
+  else if(savedRow?.updated_at)lastCloudUpdatedAt=savedRow.updated_at;
 }
 async function loadMembership(){
   const {data:members,error}=await sb.from('organization_members')
@@ -295,8 +296,9 @@ async function loadMembership(){
 }
 async function connectWorkspace(orgId){
   cloudOrgId=orgId;
-  const {data:row,error}=await sb.from('workspace_state').select('state').eq('organization_id',orgId).maybeSingle();
+  const {data:row,error}=await sb.from('workspace_state').select('state,updated_at').eq('organization_id',orgId).maybeSingle();
   if(error)throw error;
+  if(row?.updated_at)lastCloudUpdatedAt=row.updated_at;
   cloudReady=true;
   if(row?.state && Object.keys(row.state).length){
     applyCloudState(row.state);
@@ -307,13 +309,11 @@ async function connectWorkspace(orgId){
   cloudChannel=sb.channel('turnflow-workspace-'+orgId)
     .on('postgres_changes',{event:'UPDATE',schema:'public',table:'workspace_state'},payload=>{
       if(String(payload.new?.organization_id)!==String(cloudOrgId))return;
-      if(payload.new?.updated_by===cloudUser?.id)return;
-      if(payload.new?.state){applyCloudState(payload.new.state);syncToast('Updated from shared workspace');}
+      if(payload.new?.state){lastCloudUpdatedAt=payload.new.updated_at||lastCloudUpdatedAt;applyCloudState(payload.new.state);syncToast('Updated from shared workspace');}
     })
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'workspace_state'},payload=>{
       if(String(payload.new?.organization_id)!==String(cloudOrgId))return;
-      if(payload.new?.updated_by===cloudUser?.id)return;
-      if(payload.new?.state){applyCloudState(payload.new.state);syncToast('Updated from shared workspace');}
+      if(payload.new?.state){lastCloudUpdatedAt=payload.new.updated_at||lastCloudUpdatedAt;applyCloudState(payload.new.state);syncToast('Updated from shared workspace');}
     })
     .subscribe(status=>{
       if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'){
@@ -324,10 +324,11 @@ async function connectWorkspace(orgId){
   clearInterval(cloudPollTimer);
   cloudPollTimer=setInterval(async()=>{
     if(!cloudReady||!cloudOrgId||document.hidden)return;
-    const {data:latest,error:pollError}=await sb.from('workspace_state').select('state').eq('organization_id',cloudOrgId).maybeSingle();
+    const {data:latest,error:pollError}=await sb.from('workspace_state').select('state,updated_at').eq('organization_id',cloudOrgId).maybeSingle();
     if(pollError||!latest?.state)return;
-    const remoteStamp=latest.state.savedAt||'';
-    if(remoteStamp && remoteStamp!==lastCloudSavedAt){
+    const remoteUpdatedAt=latest.updated_at||'';
+    if(remoteUpdatedAt && remoteUpdatedAt!==lastCloudUpdatedAt){
+      lastCloudUpdatedAt=remoteUpdatedAt;
       applyCloudState(latest.state);
       syncToast('Updated from shared workspace');
     }
@@ -353,9 +354,13 @@ async function afterAuth(user){
   }
 }
 async function bootSupabase(){
-  const {data:{session}}=await sb.auth.getSession();
-  if(session?.user)await afterAuth(session.user);
-  else document.querySelector('#authGate').classList.remove('hidden');
+  try{
+    const {data:{session}}=await sb.auth.getSession();
+    if(session?.user)await afterAuth(session.user);
+    else document.querySelector('#authGate').classList.remove('hidden');
+  }finally{
+    document.body.classList.remove('auth-booting');
+  }
 
   sb.auth.onAuthStateChange((_event,session)=>{
     if(!session?.user){

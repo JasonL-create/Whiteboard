@@ -251,3 +251,7 @@ body{background:var(--bg);color:var(--text)}
 .user-chip{border:0;cursor:pointer;font:inherit}
 .sync-toast{position:fixed;right:24px;bottom:24px;z-index:4000;background:#17202a;color:#fff;border-radius:9px;padding:10px 14px;font-size:13px;box-shadow:0 8px 25px rgba(0,0,0,.16);opacity:0;transform:translateY(8px);pointer-events:none;transition:.18s ease}
 .sync-toast.show{opacity:1;transform:translateY(0)}
+
+/* ===== v55 auth boot state ===== */
+body.auth-booting #authGate,
+body.auth-booting #appShell{visibility:hidden}
