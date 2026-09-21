@@ -1,4 +1,4 @@
-# TurnFlow v52 — Supabase connected build
+# TurnFlow v53 — Supabase connected build
 
 This build keeps the v50 interface and adds:
 - Supabase email/password authentication
@@ -26,3 +26,6 @@ This is a migration bridge. The existing v50 card model is intentionally preserv
 
 ## v52 fix
 Fixes the browser startup error `Cannot access 'cloudReady' before initialization` that prevented the authentication handlers from loading. No additional Supabase SQL migration is required after v2.
+
+## v53 fix
+Fixes project cards not opening after the v51/v52 string-safe ID migration. Existing numeric local project IDs and future string/UUID IDs now compare consistently. No Supabase SQL changes required.
