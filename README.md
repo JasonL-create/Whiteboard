@@ -235,3 +235,9 @@ The v72 offset incorrectly treated screenshot pixels as CSS pixels. v73 fixes th
 - Prevents first-pass field/date/note edits from being lost when a brand-new project is closed and reopened.
 - If the initial database insert fails, the project is not opened locally and TurnFlow shows an app-style error.
 - No schema changes required.
+
+## v78 filter/sort event binding repair
+The filter/sort dropdowns were moved into `#pageHero`, but their click handlers were still searching the now-empty `#contextNav`. v78 binds Notices/Active, Listed/Pending/Rented, project Sort By, and Key Sort By directly to `#pageHero`. Direct All/Turns/Listings/Keys filters are retained. No data or Supabase changes.
+
+## v79 additional sort options
+Keeps all restored v78 filters/sorts and adds Projects status ordering in either direction plus Keys Available First / Assigned First. No data/schema/sync changes.
