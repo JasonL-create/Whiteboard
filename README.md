@@ -1,1 +1,1 @@
-TurnFlow v47 — uniform Key/LB checkout and return rows with explicit validated execute buttons.
+TurnFlow v48 — adds visible restore feedback: a brief card highlight/fade followed by a confirmation toast.
