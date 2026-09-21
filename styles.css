@@ -448,3 +448,11 @@ body.auth-booting #appShell{visibility:hidden}
 /* Simplified search: text field only, no oversized magnifying-glass artwork. */
 .master-search .search-wrap{gap:0 !important;padding-left:16px !important}
 .master-search .search-icon{display:none !important}
+
+/* v76: wider desktop workspace with comfortable side margins */
+:root{--turnflow-content-max:1680px;--turnflow-side-gutter:clamp(28px,3.25vw,64px)}
+.brand-row,.master-nav{width:min(100%,var(--turnflow-content-max)) !important;max-width:var(--turnflow-content-max) !important;margin-left:auto !important;margin-right:auto !important;padding-left:var(--turnflow-side-gutter) !important;padding-right:var(--turnflow-side-gutter) !important}
+.page-hero{padding-left:max(var(--turnflow-side-gutter),calc((100vw - var(--turnflow-content-max))/2 + var(--turnflow-side-gutter))) !important;padding-right:max(var(--turnflow-side-gutter),calc((100vw - var(--turnflow-content-max))/2 + var(--turnflow-side-gutter))) !important}
+.board{width:min(100%,var(--turnflow-content-max)) !important;max-width:var(--turnflow-content-max) !important;margin-left:auto !important;margin-right:auto !important;padding-left:var(--turnflow-side-gutter) !important;padding-right:var(--turnflow-side-gutter) !important}
+.workspace{max-width:none !important;width:100% !important;margin:0 !important}
+@media(max-width:850px){:root{--turnflow-side-gutter:14px}.brand-row,.master-nav,.board{width:100% !important;max-width:none !important}.page-hero{padding-left:14px !important;padding-right:14px !important}}

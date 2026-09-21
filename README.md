@@ -221,3 +221,10 @@ The v72 offset incorrectly treated screenshot pixels as CSS pixels. v73 fixes th
 - Key Location values such as Office use normal font weight.
 - Main search bar is simplified to a clean text-only Search field with no magnifying-glass graphic.
 - No database/schema changes.
+
+## v76 desktop width correction
+- Increased desktop content ceiling to 1680px.
+- Preserves responsive 28–64px side margins rather than stretching edge-to-edge.
+- Header, navigation, fixed Projects/Keys controls, board headings, and cards share the same horizontal alignment.
+- Mobile keeps compact 14px gutters.
+- No data, Supabase, project, key, lockbox, sync, or workflow logic changed.
