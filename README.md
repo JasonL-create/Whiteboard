@@ -228,3 +228,10 @@ The v72 offset incorrectly treated screenshot pixels as CSS pixels. v73 fixes th
 - Header, navigation, fixed Projects/Keys controls, board headings, and cards share the same horizontal alignment.
 - Mobile keeps compact 14px gutters.
 - No data, Supabase, project, key, lockbox, sync, or workflow logic changed.
+
+## v77 new-project first-save fix
+- New Turns/Listings are inserted into normalized Supabase before their card becomes editable.
+- The permanent project UUID and baseline are established before the card opens.
+- Prevents first-pass field/date/note edits from being lost when a brand-new project is closed and reopened.
+- If the initial database insert fails, the project is not opened locally and TurnFlow shows an app-style error.
+- No schema changes required.

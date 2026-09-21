@@ -151,6 +151,23 @@ const modal=$('#modal');function showModal(v){modal.classList.toggle('hidden',!v
  }
  const x={id:Date.now(),address,type,archived:false,completed:false,keepVisible:true,notes:'',process:type==='turn'?turnProcess():listingProcess()};
  if(type==='listing'){x.price='';x.securityDeposit='';x.sourceKeysReturned=''}
+ // A new project must have its permanent Supabase ID before the card becomes editable.
+ // Otherwise first-pass edits can target the temporary Date.now() ID and be lost when
+ // the normalized record is loaded back from the server.
+ if(normalizedReady){
+   try{
+     const propertyId=await ensureProperty(x.address);
+     const row=projectToRow(x,propertyId);
+     const {data:created,error}=await sb.from('projects').insert(row).select('id').single();
+     if(error)throw error;
+     x.id=created.id;
+     normalizedProjectBaseline.set(String(x.id),stableJSON(stableProjectShape(x)));
+   }catch(err){
+     console.error('TurnFlow create project:',err);
+     await tfAlert('Could Not Create Project','TurnFlow could not save this project to shared storage. Nothing was created. Please try again.');
+     return;
+   }
+ }
  data.unshift(x);save();filter='all';view='board';openId=x.id;e.target.reset();$('#newType').value='turn';
  document.querySelectorAll('.project-type-choice').forEach(b=>b.classList.toggle('selected',b.dataset.projectType==='turn'));
  showModal(false);render()
