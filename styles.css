@@ -231,3 +231,23 @@ body{background:var(--bg);color:var(--text)}
 .configure-section-body{padding:0 0 14px}
 .configure-section-actions{display:flex;justify-content:flex-end;padding:0 0 10px}
 .configure-lb-list{margin:0}
+
+
+/* ===== v51 Supabase authentication/shared workspace ===== */
+.auth-gate{position:fixed;inset:0;z-index:5000;background:#f7f9fb;display:flex;align-items:center;justify-content:center;padding:24px}
+.auth-gate.hidden{display:none}
+.auth-card{width:min(430px,100%);background:#fff;border:1px solid #dfe5ea;border-radius:16px;box-shadow:0 18px 50px rgba(24,39,58,.12);padding:34px}
+.auth-logo{display:block;width:230px;max-width:75%;height:auto;margin:0 auto 28px}
+.auth-card h1{font-size:25px;margin:0 0 7px;color:#17202a}
+.auth-card p{margin:0 0 24px;color:#697684;line-height:1.45}
+.auth-card label{display:block;font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#596674;margin:14px 0}
+.auth-card input{display:block;width:100%;box-sizing:border-box;margin-top:7px;border:1px solid #cfd7df;border-radius:8px;padding:12px 13px;font:inherit;text-transform:none;letter-spacing:normal}
+.auth-primary{width:100%;min-height:44px;margin-top:8px}
+.auth-link{display:block;margin:16px auto 0;border:0;background:transparent;color:#126aa3;font-weight:700;cursor:pointer}
+.auth-message{min-height:18px;margin-top:8px;font-size:13px;color:#b42318;text-transform:none;font-weight:600}
+.auth-message.success{color:#147a4b}
+.auth-divider{display:flex;align-items:center;gap:12px;color:#8a96a3;margin:20px 0 4px}
+.auth-divider:before,.auth-divider:after{content:"";height:1px;background:#e0e5ea;flex:1}
+.user-chip{border:0;cursor:pointer;font:inherit}
+.sync-toast{position:fixed;right:24px;bottom:24px;z-index:4000;background:#17202a;color:#fff;border-radius:9px;padding:10px 14px;font-size:13px;box-shadow:0 8px 25px rgba(0,0,0,.16);opacity:0;transform:translateY(8px);pointer-events:none;transition:.18s ease}
+.sync-toast.show{opacity:1;transform:translateY(0)}

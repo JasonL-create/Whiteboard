@@ -28,7 +28,7 @@ function state(x){if(x.archived)return'archived';if(x.completed)return'completed
 function turnDays(x){const k=get(x,'Keys Returned');if(!k)return 0;return diffDays(k,get(x,'Mailed Disposition')||TODAY,true)}
 function listingDays(x){const d=get(x,'Listed');if(!d)return 0;return diffDays(d,get(x,'Signed Lease Received')||TODAY,false)}
 function totalFromKeys(x){return x.sourceKeysReturned?diffDays(x.sourceKeysReturned,get(x,'Key Pickup')||TODAY,false):null}
-function save(){localStorage.setItem('whiteboardData',JSON.stringify(data))}
+function save(){localStorage.setItem('whiteboardData',JSON.stringify(data));scheduleCloudSave()}
 function field(l,v){return `<div class="status-field"><div class="label">${l}</div><div class="value">${v}</div></div>`}
 function turnTypeText(x){return x.completed?'TURN - COMPLETED':(get(x,'Keys Returned')?'TURN - ACTIVE':'TURN')}
 function turnTypeClass(x){return x.completed?'turn-completed':(get(x,'Keys Returned')?'turn-active':'turn')}
@@ -49,7 +49,7 @@ function renderRowsOnly(){
  rows.innerHTML=list.length?list.map(x=>`<section class="row ${x.archived?'archived':''} ${openId===x.id?'open':''}" data-id="${x.id}"><div class="row-main"><div class="type ${x.type==='listing'?listingTypeClass(x):turnTypeClass(x)}">${x.type==='listing'?listingTypeText(x):turnTypeText(x)}</div><div class="property">${x.address}</div><div class="status">${statusHTML(x)}</div>${x.archived?'<div class="archive-pill">ARCHIVED</div>':'<div class="chev">›</div>'}</div>${openId===x.id?detailsHTML(x):''}</section>`).join(''):`<div class="empty">No processes in this view.</div>`;
  bindBoardRows();
 }
-function bindBoardRows(){rows.querySelectorAll('.row-main').forEach(el=>el.onclick=()=>{const id=+el.parentElement.dataset.id;openId=openId===id?null:id;render()});rows.querySelectorAll('.proc-control').forEach(el=>el.onchange=()=>{const x=data.find(y=>y.id===+el.closest('.row').dataset.id),p=x.process[+el.dataset.i];p.value=p.kind==='check'?el.checked:el.value;save();render()});rows.querySelectorAll('.proc-note').forEach(el=>el.oninput=()=>{const x=data.find(y=>y.id===+el.closest('.row').dataset.id),p=x.process[+el.dataset.i];p.note=el.value;save()});rows.querySelectorAll('.notes textarea').forEach(el=>el.oninput=()=>{data.find(y=>y.id===+el.closest('.row').dataset.id).notes=el.value;save()});rows.querySelectorAll('.meta-control').forEach(el=>el.onchange=()=>{const x=data.find(y=>y.id===+el.closest('.row').dataset.id);x[el.dataset.field]=el.value;save();render()});rows.querySelectorAll('.project-complete-check').forEach(el=>el.onchange=()=>{const x=data.find(y=>y.id===+el.closest('.row').dataset.id);x.completed=el.checked;if(x.completed)x.keepVisible=true;else x.keepVisible=true;save();render()});rows.querySelectorAll('.keep-visible-check').forEach(el=>el.onchange=()=>{const x=data.find(y=>y.id===+el.closest('.row').dataset.id);x.keepVisible=el.checked;if(x.completed&&!x.keepVisible){x.archived=true;x.archivedAt=TODAY;openId=null;}save();render()});rows.querySelectorAll('[data-action]').forEach(b=>b.onclick=e=>{e.stopPropagation();handleAction(b.dataset.action,+b.closest('.row').dataset.id)})}
+function bindBoardRows(){rows.querySelectorAll('.row-main').forEach(el=>el.onclick=()=>{const id=el.parentElement.dataset.id;openId=String(openId)===String(id)?null:id;render()});rows.querySelectorAll('.proc-control').forEach(el=>el.onchange=()=>{const x=data.find(y=>String(y.id)===el.closest('.row').dataset.id),p=x.process[+el.dataset.i];p.value=p.kind==='check'?el.checked:el.value;save();render()});rows.querySelectorAll('.proc-note').forEach(el=>el.oninput=()=>{const x=data.find(y=>String(y.id)===el.closest('.row').dataset.id),p=x.process[+el.dataset.i];p.note=el.value;save()});rows.querySelectorAll('.notes textarea').forEach(el=>el.oninput=()=>{data.find(y=>String(y.id)===el.closest('.row').dataset.id).notes=el.value;save()});rows.querySelectorAll('.meta-control').forEach(el=>el.onchange=()=>{const x=data.find(y=>String(y.id)===el.closest('.row').dataset.id);x[el.dataset.field]=el.value;save();render()});rows.querySelectorAll('.project-complete-check').forEach(el=>el.onchange=()=>{const x=data.find(y=>String(y.id)===el.closest('.row').dataset.id);x.completed=el.checked;if(x.completed)x.keepVisible=true;else x.keepVisible=true;save();render()});rows.querySelectorAll('.keep-visible-check').forEach(el=>el.onchange=()=>{const x=data.find(y=>String(y.id)===el.closest('.row').dataset.id);x.keepVisible=el.checked;if(x.completed&&!x.keepVisible){x.archived=true;x.archivedAt=TODAY;openId=null;}save();render()});rows.querySelectorAll('[data-action]').forEach(b=>b.onclick=e=>{e.stopPropagation();handleAction(b.dataset.action,b.closest('.row').dataset.id)})}
 function renderShell(){
  const {active,c,arch}=counts(), turns=active.filter(x=>x.type==='turn').length, listings=active.filter(x=>x.type==='listing').length;
  const q=(($('#shellSearch')?.value)||'').replace(/"/g,'&quot;');
@@ -89,7 +89,7 @@ function bindShell(){
 function render(){if(view==='keys'){renderKeys();return;}if(view==='settings'){renderSettings();return;} $('.board-head').style.display='grid';renderShell();renderRowsOnly()}
 function detailsHTML(x){const displayProcess=x.type==='turn'?[...x.process].sort((a,b)=>{const order=['Tenant Gave Notice','Sent Confirmation','Owner Notified','Move Out','Keys Returned','Transfer Utilities','MOI','Mailed Disposition','PMI','Listed'];return order.indexOf(a.name)-order.indexOf(b.name)}):x.process;const process=`<div class="process-head"><div>PROCESS</div><div>STATUS</div><div>NOTE</div></div>${displayProcess.map((p)=>{const i=x.process.indexOf(p);const groupStart=x.type==='turn'&&['Move Out','PMI'].includes(p.name);return `<div class="process-row ${groupStart?'group-start':''}"><div>${p.name}</div><div>${p.kind==='check'?`<label class="check-status"><input class="proc-control" data-i="${i}" type="checkbox" ${p.value?'checked':''}><span>${p.value?'Complete':'Not complete'}</span></label>`:`<input class="proc-control" data-i="${i}" type="date" value="${p.value}">`}</div><div><input class="proc-note" data-i="${i}" type="text" value="${(p.note||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}" placeholder="Add note…"></div></div>`}).join('')}`;const listingMeta=x.type==='listing'?`<div class="listing-meta"><div class="meta-label">Price</div><div><input class="money-input meta-control" data-field="price" inputmode="decimal" placeholder="$" value="${x.price||''}"></div><div class="meta-label">Security Deposit</div><div><input class="money-input meta-control" data-field="securityDeposit" inputmode="decimal" placeholder="$" value="${x.securityDeposit||''}"></div></div>`:'';const metric=x.type==='listing'&&totalFromKeys(x)!==null?`<div class="metrics">Total days from key return: <strong>${totalFromKeys(x)}</strong></div>`:'';const k=typeof keyByAddress==='function'?keyByAddress(x.address):null;const access=!x.archived?`<div class="listing-meta access-group"><div class="meta-label">KEYS & ACCESS</div><div>${k?`Tag #${k.tag} · ${k.keyMissing?'Missing':k.keyOut?'Out to '+k.keyOut.to:'In Office'}`:'No key tag'}</div><div class="meta-label">Lockbox</div><div>${k?.lb?`LB #${k.lb.number} · At Property`:'None assigned'}</div></div>`:'';let completion=!x.archived?`<div class="completion-controls"><label><input class="project-complete-check" type="checkbox" ${x.completed?'checked':''}> <span>Completed</span></label><label class="keep-visible-control ${x.completed?'':'disabled'}"><input class="keep-visible-check" type="checkbox" ${x.keepVisible!==false?'checked':''} ${x.completed?'':'disabled'}> <span>Keep Visible</span></label></div>`:'';let actions='';if(x.archived)actions=`<div class="card-actions"><button class="action-restore" data-action="restore">Restore to Whiteboard</button></div>`;else if(x.type==='turn')actions=`<div class="card-actions"><button class="action-primary" data-action="create-listing">Create Listing & Archive Turn</button><button class="action-secondary" data-action="archive">Archive Turn</button></div>`;else actions=`<div class="card-actions"><button class="action-secondary" data-action="archive">Archive Listing</button></div>`;return `<div class="details">${process}${listingMeta}${access}<div class="notes"><label>NOTES</label><textarea>${x.notes||''}</textarea></div>${metric}${completion}${actions}</div>`}
 function showToast(message){let t=document.querySelector('.turnflow-toast');if(!t){t=document.createElement('div');t.className='turnflow-toast';document.body.appendChild(t)}t.innerHTML=`<span class="toast-check">✓</span><span>${message}</span>`;t.classList.remove('show');void t.offsetWidth;t.classList.add('show');clearTimeout(showToast._timer);showToast._timer=setTimeout(()=>t.classList.remove('show'),2200)}
-function handleAction(action,id){const x=data.find(y=>y.id===id);if(!x)return;if(action==='archive'){if(!confirm(`Archive this ${x.type==='turn'?'Turn':'Listing'} for ${x.address}?`))return;x.archived=true;x.archivedAt=TODAY;openId=null;save();render();return}if(action==='restore'){if(!confirm(`Restore ${x.address} to Projects?`))return;const card=document.querySelector(`.row[data-id="${id}"]`);if(card)card.classList.add('restore-flash');setTimeout(()=>{x.archived=false;x.archivedAt='';x.keepVisible=true;filter='all';openId=x.id;save();render();showToast(`${x.address} restored to Projects`);},480);return}if(action==='create-listing'){if(!confirm(`Create Listing for ${x.address} and archive this Turn?`))return;const listing={id:Date.now(),address:x.address,type:'listing',archived:false,completed:false,keepVisible:true,notes:x.notes||'',price:'',securityDeposit:'',sourceTurnId:x.id,sourceKeysReturned:get(x,'Keys Returned')||'',process:listingProcess()};setVal(listing,'Listed',get(x,'Listed')||'');x.archived=true;x.archivedAt=TODAY;x.linkedListingId=listing.id;data.unshift(listing);filter='all';openId=listing.id;save();render()}}
+function handleAction(action,id){const x=data.find(y=>String(y.id)===String(id));if(!x)return;if(action==='archive'){if(!confirm(`Archive this ${x.type==='turn'?'Turn':'Listing'} for ${x.address}?`))return;x.archived=true;x.archivedAt=TODAY;openId=null;save();render();return}if(action==='restore'){if(!confirm(`Restore ${x.address} to Projects?`))return;const card=document.querySelector(`.row[data-id="${id}"]`);if(card)card.classList.add('restore-flash');setTimeout(()=>{x.archived=false;x.archivedAt='';x.keepVisible=true;filter='all';openId=x.id;save();render();showToast(`${x.address} restored to Projects`);},480);return}if(action==='create-listing'){if(!confirm(`Create Listing for ${x.address} and archive this Turn?`))return;const listing={id:Date.now(),address:x.address,type:'listing',archived:false,completed:false,keepVisible:true,notes:x.notes||'',price:'',securityDeposit:'',sourceTurnId:x.id,sourceKeysReturned:get(x,'Keys Returned')||'',process:listingProcess()};setVal(listing,'Listed',get(x,'Listed')||'');x.archived=true;x.archivedAt=TODAY;x.linkedListingId=listing.id;data.unshift(listing);filter='all';openId=listing.id;save();render()}}
 function normalizeAddress(a){return String(a||'').toLowerCase().replace(/\b(street)\b/g,'st').replace(/\b(avenue)\b/g,'ave').replace(/\b(road)\b/g,'rd').replace(/\b(drive)\b/g,'dr').replace(/\b(lane)\b/g,'ln').replace(/\b(court)\b/g,'ct').replace(/\b(boulevard)\b/g,'blvd').replace(/\b(place)\b/g,'pl').replace(/\b(highway)\b/g,'hwy').replace(/[^a-z0-9]/g,'')}
 function knownProperties(){const m=new Map();[...data.map(x=>x.address),...keys.map(k=>k.address)].filter(Boolean).forEach(a=>{const n=normalizeAddress(a);if(!m.has(n))m.set(n,a)});return [...m.values()]}
 function propertyContext(address){const n=normalizeAddress(address),active=data.filter(x=>!x.archived&&normalizeAddress(x.address)===n);if(active.some(x=>x.type==='turn'))return 'Active Turn';if(active.some(x=>x.type==='listing'))return 'Active Listing';return ''}
@@ -105,7 +105,7 @@ const keySeed=[
 ];
 let keys=JSON.parse(localStorage.getItem('whiteboardKeysV11')||'null')||keySeed;
 let lbInventory=JSON.parse(localStorage.getItem('whiteboardLBInventoryV11')||'null')||['7','12','14','18'];
-function saveKeys(){localStorage.setItem('whiteboardKeysV11',JSON.stringify(keys));localStorage.setItem('whiteboardLBInventoryV11',JSON.stringify(lbInventory))}
+function saveKeys(){localStorage.setItem('whiteboardKeysV11',JSON.stringify(keys));localStorage.setItem('whiteboardLBInventoryV11',JSON.stringify(lbInventory));scheduleCloudSave()}
 function keyByAddress(a){return keys.find(k=>k.address.toLowerCase()===a.toLowerCase())}
 function usedLBs(){return new Set(keys.filter(k=>k.lb).map(k=>String(k.lb.number)))}
 function availableLBOptions(current=''){const used=usedLBs();return lbInventory.slice().sort((a,b)=>+a-+b).map(n=>`<option value="${n}" ${String(current)===String(n)?'selected':''} ${used.has(String(n))&&String(current)!==String(n)?'disabled':''}>LB #${n}${used.has(String(n))&&String(current)!==String(n)?' — checked out':''}</option>`).join('')}
@@ -215,3 +215,180 @@ document.addEventListener('click',e=>{
     renderRowsOnly();
   }
 });
+
+
+/* ===== v51 Supabase shared workspace bridge ===== */
+const SUPABASE_URL='https://irpupfvsbbqmoouwbcjh.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY='sb_publishable_AXEUe6q44IWxy6HCjqRezw__iHdPdfV';
+const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
+let cloudReady=false,cloudOrgId=null,cloudUser=null,cloudTimer=null,cloudChannel=null,signupMode=false,applyingRemote=false;
+
+function authMsg(text,ok=false){
+  const el=document.querySelector('#authMessage');
+  if(!el)return;
+  el.textContent=text||'';
+  el.classList.toggle('success',!!ok);
+}
+function workspaceMsg(text,ok=false){
+  const el=document.querySelector('#workspaceMessage');
+  if(!el)return;
+  el.textContent=text||'';
+  el.classList.toggle('success',!!ok);
+}
+function initials(email){
+  const s=String(email||'').split('@')[0].replace(/[^a-z0-9]+/gi,' ').trim();
+  return (s.split(/\s+/).map(x=>x[0]).join('').slice(0,2)||'U').toUpperCase();
+}
+function cloudSnapshot(){
+  return {
+    version:51,
+    projects:data,
+    keys:keys,
+    lockboxes:lbInventory,
+    savedAt:new Date().toISOString()
+  };
+}
+function applyCloudState(state){
+  if(!state)return;
+  applyingRemote=true;
+  if(Array.isArray(state.projects))data=state.projects;
+  if(Array.isArray(state.keys))keys=state.keys;
+  if(Array.isArray(state.lockboxes))lbInventory=state.lockboxes;
+  localStorage.setItem('whiteboardData',JSON.stringify(data));
+  localStorage.setItem('whiteboardKeysV11',JSON.stringify(keys));
+  localStorage.setItem('whiteboardLBInventoryV11',JSON.stringify(lbInventory));
+  applyingRemote=false;
+  openId=null;keyOpenId=null;
+  render();
+}
+function syncToast(message){
+  let t=document.querySelector('.sync-toast');
+  if(!t){t=document.createElement('div');t.className='sync-toast';document.body.appendChild(t)}
+  t.textContent=message;t.classList.remove('show');void t.offsetWidth;t.classList.add('show');
+  clearTimeout(syncToast._t);syncToast._t=setTimeout(()=>t.classList.remove('show'),1600);
+}
+function scheduleCloudSave(){
+  if(!cloudReady||!cloudOrgId||applyingRemote)return;
+  clearTimeout(cloudTimer);
+  cloudTimer=setTimeout(saveCloudState,350);
+}
+async function saveCloudState(){
+  if(!cloudReady||!cloudOrgId||!cloudUser)return;
+  const {error}=await sb.from('workspace_state').upsert({
+    organization_id:cloudOrgId,
+    state:cloudSnapshot(),
+    updated_by:cloudUser.id,
+    updated_at:new Date().toISOString()
+  },{onConflict:'organization_id'});
+  if(error){console.error('TurnFlow cloud save failed',error);syncToast('Could not save to shared workspace');}
+}
+async function loadMembership(){
+  const {data:members,error}=await sb.from('organization_members')
+    .select('organization_id,role,organizations(id,name,join_code)')
+    .eq('user_id',cloudUser.id);
+  if(error)throw error;
+  return members||[];
+}
+async function connectWorkspace(orgId){
+  cloudOrgId=orgId;
+  const {data:row,error}=await sb.from('workspace_state').select('state').eq('organization_id',orgId).maybeSingle();
+  if(error)throw error;
+  cloudReady=true;
+  if(row?.state && Object.keys(row.state).length){
+    applyCloudState(row.state);
+  }else{
+    await saveCloudState();
+  }
+  if(cloudChannel)await sb.removeChannel(cloudChannel);
+  cloudChannel=sb.channel('turnflow-workspace-'+orgId)
+    .on('postgres_changes',{event:'*',schema:'public',table:'workspace_state',filter:`organization_id=eq.${orgId}`},payload=>{
+      if(payload.new?.updated_by===cloudUser?.id)return;
+      if(payload.new?.state){applyCloudState(payload.new.state);syncToast('Updated from shared workspace');}
+    }).subscribe();
+  document.querySelector('#authGate').classList.add('hidden');
+  document.querySelector('#userChip').textContent=initials(cloudUser.email);
+}
+async function afterAuth(user){
+  cloudUser=user;
+  document.querySelector('#userChip').textContent=initials(user.email);
+  try{
+    const memberships=await loadMembership();
+    if(memberships.length){
+      await connectWorkspace(memberships[0].organization_id);
+    }else{
+      document.querySelector('#authLoginPane').classList.add('hidden');
+      document.querySelector('#workspacePane').classList.remove('hidden');
+      document.querySelector('#authGate').classList.remove('hidden');
+    }
+  }catch(err){
+    authMsg(err.message||'Could not connect to TurnFlow.');
+    document.querySelector('#authGate').classList.remove('hidden');
+  }
+}
+async function bootSupabase(){
+  const {data:{session}}=await sb.auth.getSession();
+  if(session?.user)await afterAuth(session.user);
+  else document.querySelector('#authGate').classList.remove('hidden');
+
+  sb.auth.onAuthStateChange((_event,session)=>{
+    if(!session?.user){
+      cloudReady=false;cloudOrgId=null;cloudUser=null;
+      document.querySelector('#authGate').classList.remove('hidden');
+      document.querySelector('#authLoginPane').classList.remove('hidden');
+      document.querySelector('#workspacePane').classList.add('hidden');
+    }
+  });
+}
+document.querySelector('#toggleSignup').onclick=()=>{
+  signupMode=!signupMode;
+  document.querySelector('#toggleSignup').textContent=signupMode?'Already have an account? Sign in':'Create an account';
+  document.querySelector('#authForm .auth-primary').textContent=signupMode?'Create Account':'Sign In';
+  authMsg('');
+};
+document.querySelector('#authForm').onsubmit=async e=>{
+  e.preventDefault();authMsg('');
+  const email=document.querySelector('#authEmail').value.trim();
+  const password=document.querySelector('#authPassword').value;
+  const button=e.currentTarget.querySelector('.auth-primary');button.disabled=true;
+  try{
+    if(signupMode){
+      const {data:result,error}=await sb.auth.signUp({email,password});
+      if(error)throw error;
+      if(result.session){await afterAuth(result.user)}
+      else authMsg('Account created. Check your email to confirm it, then sign in.',true);
+    }else{
+      const {data:result,error}=await sb.auth.signInWithPassword({email,password});
+      if(error)throw error;
+      await afterAuth(result.user);
+    }
+  }catch(err){authMsg(err.message||'Sign in failed.')}
+  finally{button.disabled=false}
+};
+document.querySelector('#createWorkspace').onclick=async()=>{
+  workspaceMsg('');
+  try{
+    const {data:orgId,error}=await sb.rpc('create_organization',{org_name:'Northwoods Property Management'});
+    if(error)throw error;
+    await connectWorkspace(orgId);
+    const {data:org}=await sb.from('organizations').select('join_code').eq('id',orgId).single();
+    if(org?.join_code)syncToast(`Workspace created · Code ${org.join_code}`);
+  }catch(err){workspaceMsg(err.message||'Could not create workspace.')}
+};
+document.querySelector('#joinWorkspace').onclick=async()=>{
+  workspaceMsg('');
+  const code=document.querySelector('#workspaceCode').value.trim();
+  if(!code){workspaceMsg('Enter the workspace code.');return}
+  try{
+    const {data:orgId,error}=await sb.rpc('join_organization',{code});
+    if(error)throw error;
+    await connectWorkspace(orgId);
+  }catch(err){workspaceMsg(err.message||'Could not join workspace.')}
+};
+document.querySelector('#userChip').onclick=async()=>{
+  if(!cloudUser)return;
+  if(confirm(`Signed in as ${cloudUser.email}\n\nSign out of TurnFlow?`)){
+    await sb.auth.signOut();
+    location.reload();
+  }
+};
+bootSupabase();
