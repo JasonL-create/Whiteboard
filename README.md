@@ -1,4 +1,4 @@
-# TurnFlow v71 — Supabase connected build
+# TurnFlow v72 — Supabase connected build
 
 This build keeps the v50 interface and adds:
 - Supabase email/password authentication
@@ -204,3 +204,10 @@ No SQL migration is required: schema v1 already defines `key_tags.property_id` a
 
 ## v71 UI cleanup
 Aligned Projects/Keys controls, removed dropdown arrows while retaining hover/click menus, and replaced the main Key/Lockbox/project-key browser prompts with TurnFlow-styled dialogs. No schema changes.
+
+## v72 compact fixed control row
+- Projects/Keys work controls reduced substantially in visual size.
+- Second row changed from sticky to hard-fixed directly beneath the desktop header.
+- Header and work-control surfaces are fully opaque; backdrop transparency is disabled.
+- Board receives fixed-row clearance so records scroll underneath rather than shifting the controls.
+- No data, Supabase, Key, Lockbox, project, or dialog behavior changed.
