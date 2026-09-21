@@ -1,4 +1,4 @@
-# TurnFlow v69 — Supabase connected build
+# TurnFlow v70 — Supabase connected build
 
 This build keeps the v50 interface and adds:
 - Supabase email/password authentication
@@ -189,3 +189,15 @@ skipped, and failed counts. No SQL changes required.
 - The page control row is sticky beneath the global navigation so records scroll underneath both.
 - Projects and Keys share the same layout pattern.
 - No data, Supabase, Key, Lockbox, or import behavior changed.
+
+## v70 Available Key Tags + assignment history + project guard
+- Key Tags are permanent inventory and may have `property_id = NULL`.
+- Unassigned cards display `AVAILABLE`.
+- CSV rows with a Tag but no property now import as valid Available inventory.
+- + Add Key Tag permits an empty property.
+- Editing a Key Tag can release it to Available or assign/change its property.
+- Property assignment/release/change is appended to permanent Key transaction history.
+- Starting a Turn/Listing checks for a Key Tag. If none is assigned, the user must select an
+  AVAILABLE tag before the project is created.
+- Fixed the sticky Projects/Keys control row using the actual desktop/mobile shell heights.
+No SQL migration is required: schema v1 already defines `key_tags.property_id` as nullable.

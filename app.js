@@ -102,7 +102,36 @@ function knownProperties(){const m=new Map();[...data.map(x=>x.address),...keys.
 function propertyContext(address){const n=normalizeAddress(address),active=data.filter(x=>!x.archived&&normalizeAddress(x.address)===n);if(active.some(x=>x.type==='turn'))return 'Active Turn';if(active.some(x=>x.type==='listing'))return 'Active Listing';return ''}
 function escAttr(v){return String(v||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;')}
 function updateAddressSuggestions(){const input=$('#newAddress'),box=$('#addressSuggestions'),note=$('#addressMatchNote');if(!input||!box||!note)return;const raw=input.value.trim(),q=normalizeAddress(raw);box.innerHTML='';box.classList.add('hidden');note.classList.add('hidden');if(!q)return;const matches=knownProperties().filter(a=>normalizeAddress(a).includes(q)||a.toLowerCase().includes(raw.toLowerCase())).slice(0,7);if(matches.length){box.innerHTML=matches.map(a=>{const ctx=propertyContext(a);return `<button type="button" class="address-suggestion" data-address="${escAttr(a)}"><span class="suggestion-house" aria-hidden="true">⌂</span><span class="suggestion-copy"><strong>${a}</strong>${ctx?`<small>${ctx}</small>`:''}</span>${ctx?`<span class="suggestion-status ${ctx==='Active Listing'?'listing':'turn'}">${ctx}</span>`:''}</button>`}).join('');box.classList.remove('hidden');box.querySelectorAll('.address-suggestion').forEach(b=>b.onclick=()=>{input.value=b.dataset.address;box.classList.add('hidden');note.classList.add('hidden');input.focus()})}const canonical=knownProperties().find(a=>normalizeAddress(a)===q);if(canonical&&canonical.toLowerCase()!==raw.toLowerCase()){note.innerHTML=`Possible existing property: <strong>${canonical}</strong>`;note.classList.remove('hidden')}}
-const modal=$('#modal');function showModal(v){modal.classList.toggle('hidden',!v);if(v){setTimeout(()=>$('#newAddress').focus(),0);updateAddressSuggestions()}else{$('#addressSuggestions')?.classList.add('hidden');$('#addressMatchNote')?.classList.add('hidden')}}const legacyNewProcess=$('#newProcess');if(legacyNewProcess)legacyNewProcess.onclick=()=>showModal(true);$('#closeModal').onclick=$('#cancelModal').onclick=()=>showModal(false);$('#newAddress').addEventListener('input',updateAddressSuggestions);document.querySelectorAll('.project-type-choice').forEach(b=>b.onclick=()=>{document.querySelectorAll('.project-type-choice').forEach(x=>x.classList.remove('selected'));b.classList.add('selected');$('#newType').value=b.dataset.projectType;updateAddressSuggestions()});$('#newForm').onsubmit=e=>{e.preventDefault();const type=$('#newType').value;let address=$('#newAddress').value.trim();const canonical=knownProperties().find(a=>normalizeAddress(a)===normalizeAddress(address));if(canonical)address=canonical;const sameActive=data.find(y=>!y.archived&&y.type===type&&normalizeAddress(y.address)===normalizeAddress(address));if(sameActive&&!confirm(`${address} already has an active ${type==='turn'?'Turn':'Listing'}. Create another anyway?`))return;const x={id:Date.now(),address,type,archived:false,completed:false,keepVisible:true,notes:'',process:type==='turn'?turnProcess():listingProcess()};if(type==='listing'){x.price='';x.securityDeposit='';x.sourceKeysReturned=''}data.unshift(x);save();filter='all';view='board';openId=x.id;e.target.reset();$('#newType').value='turn';document.querySelectorAll('.project-type-choice').forEach(b=>b.classList.toggle('selected',b.dataset.projectType==='turn'));showModal(false);render()};save();
+const modal=$('#modal');function showModal(v){modal.classList.toggle('hidden',!v);if(v){setTimeout(()=>$('#newAddress').focus(),0);updateAddressSuggestions()}else{$('#addressSuggestions')?.classList.add('hidden');$('#addressMatchNote')?.classList.add('hidden')}}const legacyNewProcess=$('#newProcess');if(legacyNewProcess)legacyNewProcess.onclick=()=>showModal(true);$('#closeModal').onclick=$('#cancelModal').onclick=()=>showModal(false);$('#newAddress').addEventListener('input',updateAddressSuggestions);document.querySelectorAll('.project-type-choice').forEach(b=>b.onclick=()=>{document.querySelectorAll('.project-type-choice').forEach(x=>x.classList.remove('selected'));b.classList.add('selected');$('#newType').value=b.dataset.projectType;updateAddressSuggestions()});$('#newForm').onsubmit=async e=>{
+ e.preventDefault();
+ const type=$('#newType').value;
+ let address=$('#newAddress').value.trim();
+ const canonical=knownProperties().find(a=>normalizeAddress(a)===normalizeAddress(address));
+ if(canonical)address=canonical;
+ const sameActive=data.find(y=>!y.archived&&y.type===type&&normalizeAddress(y.address)===normalizeAddress(address));
+ if(sameActive&&!confirm(`${address} already has an active ${type==='turn'?'Turn':'Listing'}. Create another anyway?`))return;
+
+ let assignedKey=keys.find(k=>k.address&&normalizeAddress(k.address)===normalizeAddress(address));
+ if(!assignedKey){
+   const available=keys.filter(k=>!k.address).slice().sort((a,b)=>String(a.tag).localeCompare(String(b.tag),undefined,{numeric:true}));
+   if(!available.length){
+     alert('This property does not have a Key Tag assigned, and there are no AVAILABLE Key Tags. Add an available Key Tag before starting this project.');
+     return;
+   }
+   const choice=prompt(`No Key Tag is assigned to ${address}.\n\nEnter an AVAILABLE Key Tag number to assign before creating this project:\n${available.slice(0,30).map(k=>'#'+k.tag).join(', ')}${available.length>30?' …':''}`);
+   if(choice===null)return;
+   assignedKey=available.find(k=>String(k.tag)===String(choice).trim().replace(/^#/,''));
+   if(!assignedKey){alert('That Key Tag is not currently AVAILABLE.');return}
+   const assigned=await assignAvailableKeyToProperty(assignedKey,address);
+   if(!assigned){alert('The Key Tag could not be assigned. The project was not created.');return}
+ }
+ const x={id:Date.now(),address,type,archived:false,completed:false,keepVisible:true,notes:'',process:type==='turn'?turnProcess():listingProcess()};
+ if(type==='listing'){x.price='';x.securityDeposit='';x.sourceKeysReturned=''}
+ data.unshift(x);save();filter='all';view='board';openId=x.id;e.target.reset();$('#newType').value='turn';
+ document.querySelectorAll('.project-type-choice').forEach(b=>b.classList.toggle('selected',b.dataset.projectType==='turn'));
+ showModal(false);render()
+};
+save();
 
 /* ===== v11 Keys: property-first inventory ===== */
 const keySeed=[
@@ -164,14 +193,14 @@ function renderUniversalSearch(q){
 }
 function renderKeyRowsOnly(){const q=(($('#search')?.value)||'').trim().toLowerCase();let list=keys.filter(k=>!q||[k.tag,k.address,k.notes,k.lb?.number,k.keyOut?.to,...(k.history||[]).map(h=>h.detail)].filter(Boolean).join(' ').toLowerCase().includes(q));if(keyFilter==='lb')list=list.filter(k=>k.lb);if(keyFilter==='keys')list=list.filter(k=>k.keyOut||k.keyMissing);list=list.slice().sort((a,b)=>keySort==='address'?a.address.localeCompare(b.address,undefined,{numeric:true,sensitivity:'base'}):String(a.tag).localeCompare(String(b.tag),undefined,{numeric:true}));rows.innerHTML=list.length?list.map(keyRowHTML).join(''):'<div class="empty">No key tags found.</div>';rows.querySelectorAll('.key-main').forEach(e=>e.onclick=()=>{keyOpenId=keyOpenId===e.parentElement.dataset.kid?null:e.parentElement.dataset.kid;renderKeys()});bindKeyActions()}
 function renderKeys(){view='keys';renderShell();$('.board-head').style.display='none';renderKeyRowsOnly()}
-function keyRowHTML(k){const keyStatus=k.keyMissing?'KEY MISSING':k.keyOut?`Out to ${k.keyOut.to}`:'Office';const lbStatus=k.lbMissing?'LB MISSING':k.lb?`LB #${k.lb.number}`:'No LB assigned';return `<section class="key-row ${keyOpenId===k.id?'open':''}" data-kid="${k.id}"><div class="key-main"><div><span class="key-sub">TAG</span> <span class="key-tag">#${k.tag}</span></div><div><div class="key-address">${k.address}</div></div><div class="key-state ${k.keyMissing?'missing-status':''}"><span class="key-location-label">KEY LOCATION</span><div><strong>${keyStatus}</strong>${k.keyOut&&!k.keyMissing?k.keyOut.date:''}</div></div><div class="key-state key-lb ${k.lbMissing?'missing-status':''}">${lbStatus}</div><div>›</div></div>${keyOpenId===k.id?keyDetailsHTML(k):''}</section>`}
+function keyRowHTML(k){const keyStatus=k.keyMissing?'KEY MISSING':k.keyOut?`Out to ${k.keyOut.to}`:'Office';const lbStatus=k.lbMissing?'LB MISSING':k.lb?`LB #${k.lb.number}`:'No LB assigned';return `<section class="key-row ${keyOpenId===k.id?'open':''}" data-kid="${k.id}"><div class="key-main"><div><span class="key-sub">TAG</span> <span class="key-tag">#${k.tag}</span></div><div><div class="key-address ${k.address?'':'key-available'}">${k.address||'AVAILABLE'}</div></div><div class="key-state ${k.keyMissing?'missing-status':''}"><span class="key-location-label">KEY LOCATION</span><div><strong>${keyStatus}</strong>${k.keyOut&&!k.keyMissing?k.keyOut.date:''}</div></div><div class="key-state key-lb ${k.lbMissing?'missing-status':''}">${lbStatus}</div><div>›</div></div>${keyOpenId===k.id?keyDetailsHTML(k):''}</section>`}
 function keyDetailsHTML(k){const hist=(k.history||[]).length?(k.history||[]).map(h=>`<div class="history-row"><div>${short(h.date)}</div><div><strong>${h.event}</strong></div><div>${h.detail||''}</div></div>`).join(''):'<div class="key-sub">No history yet.</div>';return `<div class="key-details"><div class="key-action-grid"><div><strong>Key Check Out</strong></div><div><input class="key-out-date" type="date" value=""></div><div><input class="key-out-to" placeholder="Out to…" value=""></div><div><button class="action-secondary key-checkout" disabled>Check Out Key</button></div><div><strong>Key Return</strong></div><div><input class="key-return-date" type="date" value=""></div><div class="action-detail-spacer"></div><div><button class="action-secondary key-return" disabled>Return Key</button></div><div class="section-gap"></div><div><strong>LB Check Out</strong></div><div><input class="lb-out-date" type="date" value=""></div><div><select class="lb-select"><option value="">Select available LB…</option>${availableLBOptions(k.lb?.number||'')}</select></div><div><button class="action-secondary lb-checkout" disabled>Check Out LB</button></div><div><strong>LB Return</strong></div><div><input class="lb-return-date" type="date" value=""></div><div class="action-detail-spacer"></div><div><button class="action-secondary lb-return" disabled>Return LB</button></div></div><div class="key-notes-panel"><label>Notes</label><textarea class="key-notes" placeholder="Add notes about this key or property…">${(k.notes||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea></div><div class="key-history"><details><summary><strong>History</strong></summary>${hist}</details></div><div class="key-more"><details><summary>More</summary><div class="card-actions"><button class="action-secondary key-missing">${k.keyMissing?'Mark Key Found':'Key Missing'}</button><button class="action-secondary lb-missing">${k.lbMissing?'Mark LB Found':'LB Missing'}</button><button class="action-secondary edit-key">Edit Key Tag / Property</button></div></details></div></div>`}
 
 async function saveKeyRowDirect(k,{refresh=true}={}){
   if(!normalizedReady||!cloudOrgId||!cloudUser)return false;
   const keyId=String(k.id||'');
   try{
-    const propertyId=await ensureProperty(k.address);
+    const propertyId=k.address?await ensureProperty(k.address):null;
     const row={
       organization_id:cloudOrgId,property_id:propertyId,tag_number:String(k.tag),
       current_location:k.keyMissing?'missing':(k.keyOut?'checked_out':'office'),
@@ -212,13 +241,41 @@ async function appendKeyHistoryDirect(k,h){
   if(!normalizedReady||!h||String(h.event||'').toLowerCase().startsWith('lb '))return;
   const ev=String(h.event||'').toLowerCase();
   const action=ev.includes('returned')?'return':ev.includes('missing')?'missing':ev.includes('found')?'found':ev.includes('out')?'checkout':'location_change';
-  const propertyId=await ensureProperty(k.address);
+  const propertyId=k.address?await ensureProperty(k.address):null;
   const outTo=action==='checkout'?(String(h.detail||'').replace(/^Checked out to\s*/i,'')||k.keyOut?.to||null):null;
   const res=await sb.from('key_transactions').insert({
     organization_id:cloudOrgId,key_tag_id:k.id,property_id:propertyId,action,
     action_date:h.date||TODAY,out_to:outTo,notes:h.detail||'',performed_by:cloudUser.id
   });
   if(res.error)throw res.error;
+}
+
+async function recordKeyPropertyHistory(k,{oldAddress='',newAddress='',date=TODAY}={}){
+  if(!normalizedReady||!k?.id)return;
+  let detail='';
+  if(oldAddress&&newAddress)detail=`Property changed: ${oldAddress} → ${newAddress}`;
+  else if(oldAddress&&!newAddress)detail=`Property released: ${oldAddress} → Available`;
+  else if(!oldAddress&&newAddress)detail=`Property assigned: Available → ${newAddress}`;
+  else return;
+  // Preserve the related property on the transaction even after the Key Tag becomes Available.
+  const propertyId=newAddress?await ensureProperty(newAddress):(oldAddress?await ensureProperty(oldAddress):null);
+  const res=await sb.from('key_transactions').insert({
+    organization_id:cloudOrgId,key_tag_id:k.id,property_id:propertyId,
+    action:'location_change',action_date:date,location:'office',
+    notes:detail,performed_by:cloudUser.id
+  });
+  if(res.error)throw res.error;
+}
+async function assignAvailableKeyToProperty(k,address){
+  if(!k||k.address)throw new Error('That Key Tag is not available');
+  const oldAddress=k.address||'';
+  k.address=address;
+  const ok=await saveKeyRowDirect(k,{refresh:false});
+  if(!ok){k.address=oldAddress;return false}
+  try{await recordKeyPropertyHistory(k,{oldAddress,newAddress:address})}
+  catch(err){console.error('TurnFlow property history failed',err)}
+  setTimeout(()=>refreshSharedKeys(false),100);
+  return true;
 }
 
 async function saveLockboxAssignmentDirect(k,{returning=false,date=TODAY}={}){
@@ -364,14 +421,21 @@ function bindKeyActions(){
     };
     row.querySelector('.edit-key').onclick=async()=>{
       const tag=prompt('Key tag number:',k.tag);if(tag===null)return;
-      const addr=prompt('Property address:',k.address);if(addr===null)return;
-      k.tag=tag.trim();k.address=addr.trim();
-      await saveKeyRowDirect(k);renderKeys();
+      const addr=prompt('Property address (leave blank to make this tag AVAILABLE):',k.address);if(addr===null)return;
+      const oldTag=k.tag,oldAddress=k.address||'',newAddress=addr.trim();
+      k.tag=tag.trim();k.address=newAddress;
+      const ok=await saveKeyRowDirect(k,{refresh:false});
+      if(!ok){k.tag=oldTag;k.address=oldAddress;renderKeys();return}
+      if(normalizeAddress(oldAddress)!==normalizeAddress(newAddress)){
+        try{await recordKeyPropertyHistory(k,{oldAddress,newAddress})}
+        catch(err){console.error(err);syncToast('Key saved; property history needs attention')}
+      }
+      renderKeys();setTimeout(()=>refreshSharedKeys(false),100);
     };
   });
 }
 function manageLBInventory(){const raw=prompt('Lockbox numbers in inventory (comma separated):',lbInventory.join(', '));if(raw===null)return;lbInventory=[...new Set(raw.split(',').map(x=>x.trim().replace(/^#/, '')).filter(Boolean))];saveKeys();renderKeys()}
-async function addKeyTag(){const tag=prompt('Key tag number:');if(!tag)return;const address=prompt('Property address:');if(!address)return;const k={id:'k'+Date.now(),tag:tag.trim(),address:address.trim(),keyOut:null,keyMissing:false,lb:null,lbMissing:false,history:[],notes:''};keys.push(k);const ok=await saveKeyRowDirect(k);if(!ok)keys=keys.filter(x=>x!==k);renderKeys()}
+async function addKeyTag(){const tag=prompt('Key tag number:');if(!tag)return;const address=prompt('Property address (leave blank for AVAILABLE):');if(address===null)return;const k={id:'k'+Date.now(),tag:tag.trim(),address:address.trim(),keyOut:null,keyMissing:false,lb:null,lbMissing:false,history:[],notes:''};keys.push(k);const ok=await saveKeyRowDirect(k,{refresh:false});if(!ok){keys=keys.filter(x=>x!==k);renderKeys();return}if(k.address){try{await recordKeyPropertyHistory(k,{oldAddress:'',newAddress:k.address})}catch(e){console.error(e)}}renderKeys();setTimeout(()=>refreshSharedKeys(false),100)}
 // Search is controlled from the fixed SEARCH dropdown.
 saveKeys();
 render();
@@ -405,12 +469,12 @@ function previewKeyImport(rowsData){
  const box=$('#importPreview');if(!rowsData.length){box.innerHTML='<div class="import-warning">No rows found in that file.</div>';return}
  const headers=rowsData[0].map(normHeader);const tagNames=['keytag','tag','keytagnumber','tagnumber','keynumber'];const addrNames=['propertyaddress','address','property','unitaddress'];
  const ti=headers.findIndex(h=>tagNames.includes(h)),ai=headers.findIndex(h=>addrNames.includes(h));
- if(ti<0||ai<0){box.innerHTML='<div class="import-warning"><strong>Could not identify the columns.</strong><br>CSV needs a Key Tag/Tag column and a Property Address/Address column.</div>';return}
- const parsed=rowsData.slice(1).map((r,i)=>({line:i+2,tag:(r[ti]||'').trim().replace(/^#/,'').trim(),address:(r[ai]||'').trim()})).filter(r=>r.tag||r.address);
+ if(ti<0){box.innerHTML='<div class="import-warning"><strong>Could not identify the Key Tag column.</strong><br>CSV needs a Key Tag/Tag column. Property Address is optional; blank addresses import as AVAILABLE.</div>';return}
+ const parsed=rowsData.slice(1).map((r,i)=>({line:i+2,tag:(r[ti]||'').trim().replace(/^#/,'').trim(),address:ai>=0?(r[ai]||'').trim():''})).filter(r=>r.tag||r.address);
  const seenTags=new Set(),seenAddr=new Set();let good=0;
- parsed.forEach(r=>{const addr=r.address.toLowerCase();r.issues=[];if(!r.tag)r.issues.push('Missing tag');if(!r.address)r.issues.push('Missing address');if(r.tag&&(keys.some(k=>String(k.tag)===String(r.tag))||seenTags.has(r.tag)))r.issues.push('Duplicate tag');if(addr&&(keys.some(k=>k.address.toLowerCase()===addr)||seenAddr.has(addr)))r.issues.push('Address already exists');if(r.tag)seenTags.add(r.tag);if(addr)seenAddr.add(addr);if(!r.issues.length)good++});
+ parsed.forEach(r=>{const addr=r.address.toLowerCase();r.issues=[];if(!r.tag)r.issues.push('Missing tag');if(r.tag&&(keys.some(k=>String(k.tag)===String(r.tag))||seenTags.has(r.tag)))r.issues.push('Duplicate tag');if(addr&&(keys.some(k=>k.address.toLowerCase()===addr)||seenAddr.has(addr)))r.issues.push('Address already exists');if(r.tag)seenTags.add(r.tag);if(addr)seenAddr.add(addr);if(!r.issues.length)good++});
  window.pendingKeyImport=parsed;
- box.innerHTML=`<div class="import-summary"><strong>${parsed.length}</strong> rows found · <strong>${good}</strong> ready to import · <strong>${parsed.length-good}</strong> flagged</div><div class="import-table"><div class="import-row import-head"><div>TAG</div><div>PROPERTY</div><div>RESULT</div></div>${parsed.map(r=>`<div class="import-row"><div>${escapeHTML(r.tag||'—')}</div><div>${escapeHTML(r.address||'—')}</div><div class="${r.issues.length?'import-issue':'import-ready'}">${r.issues.length?r.issues.join(' · '):'Ready'}</div></div>`).join('')}</div><div class="import-actions"><button id="cancelImport" class="action-secondary">Cancel</button><button id="commitImport" class="primary" ${good?'':'disabled'}>Import ${good} Records</button></div>`;
+ box.innerHTML=`<div class="import-summary"><strong>${parsed.length}</strong> rows found · <strong>${good}</strong> ready to import · <strong>${parsed.length-good}</strong> flagged</div><div class="import-table"><div class="import-row import-head"><div>TAG</div><div>PROPERTY</div><div>RESULT</div></div>${parsed.map(r=>`<div class="import-row"><div>${escapeHTML(r.tag||'—')}</div><div>${escapeHTML(r.address||'AVAILABLE')}</div><div class="${r.issues.length?'import-issue':'import-ready'}">${r.issues.length?r.issues.join(' · '):'Ready'}</div></div>`).join('')}</div><div class="import-actions"><button id="cancelImport" class="action-secondary">Cancel</button><button id="commitImport" class="primary" ${good?'':'disabled'}>Import ${good} Records</button></div>`;
  $('#cancelImport').onclick=()=>{box.innerHTML='';$('#keyLogFile').value='';window.pendingKeyImport=null};
  $('#commitImport').onclick=()=>commitKeyImport();
 }
@@ -424,7 +488,7 @@ async function commitKeyImport(){
   let imported=0;const failed=[];
   for(const r of valid){
     try{
-      const propertyId=await ensureProperty(r.address);
+      const propertyId=r.address?await ensureProperty(r.address):null;
       const ins=await sb.from('key_tags').insert({
         organization_id:cloudOrgId,property_id:propertyId,tag_number:String(r.tag),
         current_location:'office',checked_out_to:null,checked_out_at:null,notes:'',created_by:cloudUser.id
@@ -433,7 +497,8 @@ async function commitKeyImport(){
       const tx=await sb.from('key_transactions').insert({
         organization_id:cloudOrgId,key_tag_id:ins.data.id,property_id:propertyId,
         action:'location_change',action_date:TODAY,location:'office',
-        notes:'Imported from Key Log',performed_by:cloudUser.id
+        notes:r.address?`Imported from Key Log · Property assigned: ${r.address}`:'Imported from Key Log · Available',
+        performed_by:cloudUser.id
       });
       if(tx.error)console.error('TurnFlow import history failed',tx.error);
       imported++;

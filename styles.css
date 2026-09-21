@@ -305,3 +305,8 @@ body.auth-booting #appShell{visibility:hidden}
   .page-hero .hero-add{height:44px}
   .board{padding:16px 14px 0}
 }
+
+/* v70: sticky controls sit below the full fixed shell, not under it */
+.page-hero{top:186px}
+.key-available{font-weight:800;color:#16815f;letter-spacing:.02em}
+@media(max-width:850px){.page-hero{top:136px}}
