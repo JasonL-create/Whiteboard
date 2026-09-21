@@ -380,31 +380,12 @@ function applyNormalized(rowsData,{renderUI=true}={}){
 
   data=(rowsData.projects||[]).map(r=>rowToProject(r,propMap.get(r.property_id)?.address||'Unknown Property'));
 
-  const lbByProperty=new Map();
-  (rowsData.lockboxes||[]).filter(l=>l.property_id && ['assigned','missing'].includes(l.status))
-    .forEach(l=>lbByProperty.set(l.property_id,l));
-  const keyTxByTag=new Map();
-  (rowsData.keyTx||[]).forEach(t=>{if(!keyTxByTag.has(t.key_tag_id))keyTxByTag.set(t.key_tag_id,[]);keyTxByTag.get(t.key_tag_id).push(t)});
-  const lbTxByBox=new Map();
-  (rowsData.lbTx||[]).forEach(t=>{if(!lbTxByBox.has(t.lockbox_id))lbTxByBox.set(t.lockbox_id,[]);lbTxByBox.get(t.lockbox_id).push(t)});
-
-  keys=(rowsData.keyTags||[]).map(k=>{
-    const prop=propMap.get(k.property_id);
-    const lb=lbByProperty.get(k.property_id);
-    const hist=(keyTxByTag.get(k.id)||[]).map(t=>txToHistory(t,false));
-    if(lb)hist.push(...(lbTxByBox.get(lb.id)||[]).map(t=>txToHistory(t,true)));
-    hist.sort((a,b)=>String(b.date).localeCompare(String(a.date)));
-    return {
-      id:k.id,tag:k.tag_number,address:prop?.address||'',notes:k.notes||'',
-      keyOut:k.current_location==='checked_out'?{date:k.checked_out_at||'',to:k.checked_out_to||''}:null,
-      keyMissing:k.current_location==='missing',
-      lb:lb?{number:lb.lockbox_number,outDate:lb.assigned_at||''}:null,
-      lbMissing:lb?.status==='missing',history:hist
-    };
-  });
-  lbInventory=(rowsData.lockboxes||[]).filter(l=>l.status!=='retired').map(l=>String(l.lockbox_number));
+  const mapped=mapSharedKeys(rowsData);
+  keys=mapped.keys;
+  lbInventory=mapped.lockboxes;
 
   localStorage.setItem('whiteboardData',JSON.stringify(data));
+  // Cache only. These values are never used as authoritative Keys after normalized startup.
   localStorage.setItem('whiteboardKeysV11',JSON.stringify(keys));
   localStorage.setItem('whiteboardLBInventoryV11',JSON.stringify(lbInventory));
 
@@ -413,6 +394,7 @@ function applyNormalized(rowsData,{renderUI=true}={}){
   setNormalizedBaselines();
   if(renderUI)render();
 }
+
 async function migrateWorkspaceSnapshotToNormalized(snapshot){
   const oldProjects=Array.isArray(snapshot?.projects)?snapshot.projects:[];
   const oldKeys=Array.isArray(snapshot?.keys)?snapshot.keys:[];
@@ -640,6 +622,8 @@ async function syncNormalizedChanges(){
     // Do NOT fetch/apply the server here. v63 did that and could replace a
     // newer Key edit with the just-saved older snapshot.
     normalizedFingerprint=normalizedStateFingerprint();
+    // Confirm against the authoritative Key tables after the local write settles.
+    setTimeout(()=>refreshSharedKeys(false),150);
   }catch(err){
     console.error('TurnFlow normalized save failed',err);
     syncToast('Could not save a shared record');
@@ -710,15 +694,81 @@ async function reconcileMissingKeysFromRecovery(snapshot,rowsData){
   if(added)rowsData=await fetchNormalized();
   return rowsData;
 }
+
+async function fetchSharedKeys(){
+  const [propRes,keyRes,lbRes,ktRes,lbtRes]=await Promise.all([
+    sb.from('properties').select('*').eq('organization_id',cloudOrgId),
+    sb.from('key_tags').select('*').eq('organization_id',cloudOrgId),
+    sb.from('lockboxes').select('*').eq('organization_id',cloudOrgId),
+    sb.from('key_transactions').select('*').eq('organization_id',cloudOrgId).order('created_at',{ascending:false}),
+    sb.from('lockbox_transactions').select('*').eq('organization_id',cloudOrgId).order('created_at',{ascending:false})
+  ]);
+  for(const r of [propRes,keyRes,lbRes,ktRes,lbtRes])if(r.error)throw r.error;
+  return {properties:propRes.data||[],keyTags:keyRes.data||[],lockboxes:lbRes.data||[],keyTx:ktRes.data||[],lbTx:lbtRes.data||[]};
+}
+function mapSharedKeys(rowsData){
+  const propMap=new Map((rowsData.properties||[]).map(p=>[p.id,p]));
+  propertyIdByNorm=new Map((rowsData.properties||[]).map(p=>[p.normalized_address,p.id]));
+  const lbByProperty=new Map();
+  (rowsData.lockboxes||[]).filter(l=>l.property_id && ['assigned','missing'].includes(l.status))
+    .forEach(l=>lbByProperty.set(l.property_id,l));
+  const keyTxByTag=new Map();
+  (rowsData.keyTx||[]).forEach(t=>{if(!keyTxByTag.has(t.key_tag_id))keyTxByTag.set(t.key_tag_id,[]);keyTxByTag.get(t.key_tag_id).push(t)});
+  const lbTxByBox=new Map();
+  (rowsData.lbTx||[]).forEach(t=>{if(!lbTxByBox.has(t.lockbox_id))lbTxByBox.set(t.lockbox_id,[]);lbTxByBox.get(t.lockbox_id).push(t)});
+  const mapped=(rowsData.keyTags||[]).map(k=>{
+    const prop=propMap.get(k.property_id),lb=lbByProperty.get(k.property_id);
+    const hist=(keyTxByTag.get(k.id)||[]).map(t=>txToHistory(t,false));
+    if(lb)hist.push(...(lbTxByBox.get(lb.id)||[]).map(t=>txToHistory(t,true)));
+    hist.sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+    return {
+      id:k.id,tag:k.tag_number,address:prop?.address||'',notes:k.notes||'',
+      keyOut:k.current_location==='checked_out'?{date:k.checked_out_at||'',to:k.checked_out_to||''}:null,
+      keyMissing:k.current_location==='missing',
+      lb:lb?{number:lb.lockbox_number,outDate:lb.assigned_at||''}:null,
+      lbMissing:lb?.status==='missing',history:hist
+    };
+  });
+  return {keys:mapped,lockboxes:(rowsData.lockboxes||[]).filter(l=>l.status!=='retired').map(l=>String(l.lockbox_number))};
+}
+async function refreshSharedKeys(showMessage=true){
+  if(!normalizedReady||normalizedSaving||dirtyKeyIds.size||normalizedSaveTimer){
+    clearTimeout(normalizedRefreshTimer);
+    normalizedRefreshTimer=setTimeout(()=>refreshSharedKeys(showMessage),250);
+    return;
+  }
+  try{
+    const preserved=document.querySelector('#rows .key-row.open')?.dataset.kid ?? keyOpenId;
+    const rowsData=await fetchSharedKeys();
+    const mapped=mapSharedKeys(rowsData);
+    const before=stableJSON(keys.map(stableKeyShape).sort((a,b)=>String(a.id).localeCompare(String(b.id))));
+    const incoming=stableJSON(mapped.keys.map(stableKeyShape).sort((a,b)=>String(a.id).localeCompare(String(b.id))));
+    keys=mapped.keys;
+    lbInventory=mapped.lockboxes;
+    keyOpenId=(preserved!=null&&keys.some(k=>String(k.id)===String(preserved)))?preserved:null;
+    normalizedKeyBaseline=new Map(keys.map(k=>[String(k.id),stableJSON(stableKeyShape(k))]));
+    normalizedLBSet=new Set(lbInventory.map(String));
+    localStorage.setItem('whiteboardKeysV11',JSON.stringify(keys));
+    localStorage.setItem('whiteboardLBInventoryV11',JSON.stringify(lbInventory));
+    if(incoming!==before){
+      if(view==='keys')renderKeys(); else renderShell();
+      if(showMessage)syncToast('Keys updated from shared records');
+    }
+  }catch(err){console.error('TurnFlow Key refresh failed',err)}
+}
+function scheduleSharedKeyRefresh(){
+  clearTimeout(normalizedRefreshTimer);
+  normalizedRefreshTimer=setTimeout(()=>refreshSharedKeys(true),120);
+}
 async function startNormalizedMode(snapshot){
   let rowsData=await fetchNormalized();
   if(rowsData.projects.length===0 && rowsData.keyTags.length===0 && rowsData.properties.length===0){
     await migrateWorkspaceSnapshotToNormalized(snapshot||{});
     rowsData=await fetchNormalized();
   }
-  // v60 could partially migrate Projects before Keys. Repair missing key tags
-  // from the retained recovery snapshot without duplicating existing tags.
-  rowsData=await reconcileMissingKeysFromRecovery(snapshot||{},rowsData);
+  // After the one-time migration above, normalized tables are authoritative.
+  // Never reconcile Keys from workspace_state again: an old recovery snapshot
+  // must not be able to recreate or overwrite current shared Key data.
   applyNormalized(rowsData,{renderUI:true});
   normalizedReady=true;
 
@@ -727,11 +777,22 @@ async function startNormalizedMode(snapshot){
   // without returning to whole-workspace snapshot writes.
   if(normalizedChannel)await sb.removeChannel(normalizedChannel);
   normalizedChannel=sb.channel('turnflow-normalized-'+cloudOrgId);
-  for(const table of ['properties','projects','key_tags','lockboxes','key_transactions','lockbox_transactions']){
+  for(const table of ['projects']){
     normalizedChannel.on('postgres_changes',
       {event:'*',schema:'public',table,filter:`organization_id=eq.${cloudOrgId}`},
       ()=>scheduleNormalizedRefresh());
   }
+  // Keys have their own authoritative refresh path. A Key event never runs
+  // through workspace_state or replaces Project state.
+  for(const table of ['key_tags','lockboxes','key_transactions','lockbox_transactions']){
+    normalizedChannel.on('postgres_changes',
+      {event:'*',schema:'public',table,filter:`organization_id=eq.${cloudOrgId}`},
+      ()=>scheduleSharedKeyRefresh());
+  }
+  // Property changes can affect either display; use the full normalized refresh.
+  normalizedChannel.on('postgres_changes',
+    {event:'*',schema:'public',table:'properties',filter:`organization_id=eq.${cloudOrgId}`},
+    ()=>scheduleNormalizedRefresh());
   normalizedChannel.subscribe(status=>{
     if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'){
       console.error('TurnFlow normalized realtime:',status);
@@ -742,7 +803,9 @@ async function startNormalizedMode(snapshot){
   // Slow fallback in case a realtime event is missed.
   clearInterval(normalizedPollTimer);
   normalizedPollTimer=setInterval(()=>{
-    if(!document.hidden)refreshNormalizedFromServer(false);
+    if(document.hidden)return;
+    refreshNormalizedFromServer(false);
+    refreshSharedKeys(false);
   },10000);
 }
 function authMsg(text,ok=false){
@@ -784,8 +847,10 @@ function applyCloudState(state){
   if(state.savedAt)lastCloudSavedAt=state.savedAt;
   applyingRemote=true;
   if(Array.isArray(state.projects))data=state.projects;
-  if(Array.isArray(state.keys))keys=state.keys;
-  if(Array.isArray(state.lockboxes))lbInventory=state.lockboxes;
+  // Once normalized mode is established, Keys/Lockboxes are database-only.
+  // workspace_state/local recovery is migration input, never a competing live source.
+  if(!normalizedReady && Array.isArray(state.keys))keys=state.keys;
+  if(!normalizedReady && Array.isArray(state.lockboxes))lbInventory=state.lockboxes;
   localStorage.setItem('whiteboardData',JSON.stringify(data));
   localStorage.setItem('whiteboardKeysV11',JSON.stringify(keys));
   localStorage.setItem('whiteboardLBInventoryV11',JSON.stringify(lbInventory));

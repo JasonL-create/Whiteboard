@@ -1,4 +1,4 @@
-# TurnFlow v64 — Supabase connected build
+# TurnFlow v65 — Supabase connected build
 
 This build keeps the v50 interface and adds:
 - Supabase email/password authentication
@@ -127,4 +127,26 @@ v64:
 - queues another save if a newer edit occurred during the previous save;
 - requires a key_tags UPDATE to return the updated row, so a silent zero-row update is treated as an error;
 - keeps realtime refreshes deferred while a local save is queued/in flight.
+No SQL changes required.
+
+## v65 Keys authoritative-data refactor
+This is intentionally not another stale-state patch.
+
+Audit finding:
+- Projects effectively had one normalized current-state source (`projects`).
+- Keys still had multiple competing live/recovery paths: `key_tags`, transaction-derived UI,
+  localStorage cache, and `workspace_state` recovery reconciliation.
+- The recovery reconciliation also ran on every normalized startup, so old workspace-state Key
+  records could continue participating after migration.
+
+Refactor:
+- After normalized startup, current Key state comes only from normalized Supabase Key tables.
+- `workspace_state` Keys/Lockboxes are migration/recovery input only and cannot replace live Keys.
+- Removed recurring startup Key reconciliation from the old workspace snapshot.
+- Added a dedicated `fetchSharedKeys -> mapSharedKeys -> refreshSharedKeys` path.
+- Key realtime events refresh Keys only.
+- Key polling refreshes the same authoritative Key tables.
+- localStorage remains cache only after normalized startup.
+- Transactions remain history; current checkout/missing state comes from `key_tags`.
+- Lockbox current assignment comes from `lockboxes`; lockbox transactions remain history.
 No SQL changes required.
