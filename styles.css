@@ -538,3 +538,17 @@ body.auth-booting #appShell{visibility:hidden}
   .hero-search{flex:0 0 190px;margin-left:auto}
   .hero-search .search-wrap{min-width:0 !important;width:100% !important}
 }
+
+
+/* v87: Projects/Keys are primary navigation; Archive/Reports/Configure live under More. */
+.master-left{display:flex;align-items:stretch;width:100% !important}
+.more-nav{margin-left:auto;position:relative;display:flex;align-items:stretch}
+.more-nav-btn{min-width:92px}
+.more-caret{font-size:16px;font-weight:500;margin-left:2px;transform:translateY(-1px)}
+.more-menu{left:auto !important;right:0 !important;top:calc(100% - 2px) !important;min-width:150px !important;padding:7px !important;z-index:1200 !important}
+.more-menu button{width:100%;text-align:left;padding:10px 12px;border-radius:7px;color:#31506c;background:#fff;font-weight:650}
+.more-menu button:hover,.more-menu button.current{background:#eef6fd;color:#116b9b}
+.more-nav:hover .more-menu,.more-nav:focus-within .more-menu{display:block}
+.action-delete{background:#fff;border:1px solid #d7a2a2;color:#a62d2d;border-radius:8px;padding:10px 14px;font-weight:700;cursor:pointer;margin-left:auto}
+.action-delete:hover{background:#fff5f5;border-color:#c97777}
+@media(max-width:850px){.more-nav{margin-left:auto}.more-nav-btn{min-width:76px}.more-menu{right:0 !important;left:auto !important}}
