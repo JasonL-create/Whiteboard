@@ -522,3 +522,19 @@ body.auth-booting #appShell{visibility:hidden}
   .brand-row,.master-nav,.board{width:var(--turnflow-content-width) !important}
   .page-hero{padding-left:14px !important;padding-right:14px !important}
 }
+
+/* v86: Search belongs to the persistent second-layer toolbar on every page. */
+.master-nav{justify-content:flex-start !important}
+.master-left{width:100% !important}
+.page-hero{justify-content:space-between !important}
+.page-hero .context-left{width:auto !important;min-width:0;flex:0 1 auto}
+.hero-search{margin-left:auto;flex:0 0 300px;min-width:0}
+.hero-search .search-wrap{width:100%;min-width:0;height:44px;padding-left:16px !important;gap:0 !important}
+.hero-search .shell-search{width:100% !important}
+@media(max-width:1200px){.hero-search{flex-basis:230px}}
+@media(max-width:850px){
+  .page-hero{gap:10px !important;overflow-x:auto}
+  .page-hero .context-left{flex:0 0 auto}
+  .hero-search{flex:0 0 190px;margin-left:auto}
+  .hero-search .search-wrap{min-width:0 !important;width:100% !important}
+}
