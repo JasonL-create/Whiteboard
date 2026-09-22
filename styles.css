@@ -481,3 +481,44 @@ body.auth-booting #appShell{visibility:hidden}
 
 /* v84: report result arrows stay anchored at the far-right edge */
 .report-list-link .report-row-arrow{grid-column:3;justify-self:end}
+
+/* v85: one shared responsive horizontal boundary for the entire application.
+   Header, primary nav, work controls, boards, reports and configure all use
+   the same outer container instead of independently calculated gutters. */
+:root{
+  --turnflow-content-max:1680px;
+  --turnflow-side-gutter:clamp(28px,3.25vw,64px);
+  --turnflow-content-width:min(calc(100vw - (2 * var(--turnflow-side-gutter))),var(--turnflow-content-max));
+  --turnflow-content-edge:calc((100vw - var(--turnflow-content-width))/2);
+}
+.brand-row,
+.master-nav{
+  width:var(--turnflow-content-width) !important;
+  max-width:none !important;
+  margin-left:auto !important;
+  margin-right:auto !important;
+  padding-left:0 !important;
+  padding-right:0 !important;
+}
+.page-hero{
+  padding-left:var(--turnflow-content-edge) !important;
+  padding-right:var(--turnflow-content-edge) !important;
+}
+.board{
+  width:var(--turnflow-content-width) !important;
+  max-width:none !important;
+  margin-left:auto !important;
+  margin-right:auto !important;
+  padding-left:0 !important;
+  padding-right:0 !important;
+}
+/* Keep headings aligned with the card content boundary, not a second inset. */
+.board-head{padding-left:20px !important;padding-right:20px !important}
+@media(max-width:850px){
+  :root{
+    --turnflow-side-gutter:14px;
+    --turnflow-content-width:calc(100vw - 28px);
+  }
+  .brand-row,.master-nav,.board{width:var(--turnflow-content-width) !important}
+  .page-hero{padding-left:14px !important;padding-right:14px !important}
+}
