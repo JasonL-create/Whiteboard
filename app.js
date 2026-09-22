@@ -42,7 +42,7 @@ function turnTypeText(x){return x.completed?'TURN - COMPLETED':(get(x,'Keys Retu
 function turnTypeClass(x){return x.completed?'turn-completed':(get(x,'Keys Returned')?'turn-active':'turn')}
 function listingTypeText(x){if(x.completed)return 'LISTING - COMPLETED';if(x.archived)return 'LISTING - ACTIVE';return 'LISTING'}
 function listingTypeClass(x){if(x.completed)return 'listing-completed';if(x.archived)return 'listing-archived-active';return 'listing'}
-function statusHTML(x){if(x.archived)return field('STATUS','Archived')+field('TYPE',x.type==='turn'?'Turn':'Listing')+'<div></div>';if(x.type==='turn'){if(!get(x,'Keys Returned'))return field('NOTICE',short(get(x,'Tenant Gave Notice')))+field('MOVE OUT',short(get(x,'Move Out')))+'<div></div>';return field('KEYS RETURNED',short(get(x,'Keys Returned')))+field('MOI',short(get(x,'MOI')))+`<div class="status-field"><div class="label">DAYS</div><div class="turn-days">${turnDays(x)} / 31</div></div>`+(get(x,'Mailed Disposition')?field('MAILED DISP',short(get(x,'Mailed Disposition'))):'')}const leaseState=state(x),lease=leaseState.toUpperCase(),pickup=get(x,'Key Pickup');return field('LIST DATE',short(get(x,'Listed')))+`<div class="status-field"><div class="label">LEASE STATUS</div><div class="value lease-status ${leaseState}">${lease}</div></div>`+`<div><div class="status-field"><div class="label">DAYS</div><div class="listing-days">${listingDays(x)}</div></div></div>`+(pickup?field('KEY PICKUP',short(pickup)):'')+(get(x,'Signed Lease Received')&&!get(x,'Remove LB')?'<div class="pickup-lb-pill">PICK UP LB</div>':'')}
+function statusHTML(x){if(x.archived)return field('STATUS','Archived')+field('TYPE',x.type==='turn'?'Turn':'Listing')+'<div></div>';if(x.type==='turn'){if(!get(x,'Keys Returned'))return field('NOTICE',short(get(x,'Tenant Gave Notice')))+field('MOVE OUT',short(get(x,'Move Out')))+'<div></div>';return field('KEYS RETURNED',short(get(x,'Keys Returned')))+field('MOI',short(get(x,'MOI')))+`<div class="status-field"><div class="label">DAYS</div><div class="turn-days">${turnDays(x)} / 31</div></div>`+(get(x,'Mailed Disposition')?field('MAILED DISP',short(get(x,'Mailed Disposition'))):'')}const leaseState=state(x),lease=leaseState.toUpperCase(),pickup=get(x,'Key Pickup');return field('LIST DATE',short(get(x,'Listed')))+`<div class="status-field"><div class="label">LEASE STATUS</div><div class="value lease-status ${leaseState}">${lease}</div></div>`+`<div><div class="status-field"><div class="label">DAYS</div><div class="listing-days">${listingDays(x)}</div></div></div>`+(pickup?field('KEY PICKUP',short(pickup)):'<div></div>')+(get(x,'Signed Lease Received')&&!get(x,'Remove LB')?'<div class="pickup-lb-pill">PICK UP LB</div>':'<div></div>')}
 function activeData(){return data.filter(x=>!x.archived)}
 function counts(){const active=activeData(),c=s=>active.filter(x=>state(x)===s).length;return {active,c,arch:data.filter(x=>x.archived).length}}
 function searchValue(){return ($('#shellSearch')?.value||$('#search')?.value||'').trim()}
@@ -486,7 +486,20 @@ render();
 
 function avg(values){const v=values.filter(n=>Number.isFinite(n));return v.length?Math.round(v.reduce((a,b)=>a+b,0)/v.length):0}
 function reportMetric(label,value,key){return `<button class="report-metric" data-report-drill="${key}"><span>${label}</span><strong>${value}</strong></button>`}
-function reportRows(title,items){return `<section class="report-detail"><h2>${title}</h2>${items.length?`<div class="report-list">${items.map(x=>`<div class="report-list-row"><strong>${escapeHTML(x.address||'—')}</strong><span>${escapeHTML(x.detail||'')}</span></div>`).join('')}</div>`:'<div class="empty">No matching records.</div>'}</section>`}
+function reportRows(title,items){return `<section class="report-detail"><h2>${title}</h2>${items.length?`<div class="report-list">${items.map(x=>{const attrs=x.targetType&&x.targetId!=null?` data-report-target="${escapeHTML(x.targetType)}" data-report-id="${escapeHTML(String(x.targetId))}"`:'';const tag=x.targetType&&x.targetId!=null?'button':'div';return `<${tag} class="report-list-row ${x.targetType&&x.targetId!=null?'report-list-link':''}"${attrs}><strong>${escapeHTML(x.address||'—')}</strong><span>${escapeHTML(x.detail||'')}</span>${x.targetType&&x.targetId!=null?'<b class="report-row-arrow">›</b>':''}</${tag}>`}).join('')}</div>`:'<div class="empty">No matching records.</div>'}</section>`}
+function openReportRecord(type,id){
+ if(type==='project'){
+  const x=data.find(p=>String(p.id)===String(id));if(!x)return;
+  view='board';filter=x.archived?'archived':'all';openId=x.id;keyOpenId=null;reportDrill='';setSearchValue('');render();
+  requestAnimationFrame(()=>requestAnimationFrame(()=>document.querySelector(`.row[data-id="${CSS.escape(String(x.id))}"]`)?.scrollIntoView({behavior:'smooth',block:'center'})));
+  return;
+ }
+ if(type==='key'){
+  const k=keys.find(v=>String(v.id)===String(id));if(!k)return;
+  view='keys';keyFilter='all';keyOpenId=k.id;openId=null;reportDrill='';setSearchValue('');renderKeys();
+  requestAnimationFrame(()=>requestAnimationFrame(()=>document.querySelector(`.key-row[data-kid="${CSS.escape(String(k.id))}"]`)?.scrollIntoView({behavior:'smooth',block:'center'})));
+ }
+}
 function renderReports(){
  view='reports';renderShell();$('.board-head').style.display='none';
  const active=data.filter(x=>!x.archived),turns=active.filter(x=>x.type==='turn'),listings=active.filter(x=>x.type==='listing');
@@ -498,12 +511,12 @@ function renderReports(){
    const used=usedLBs(),lbAvailable=lbInventory.filter(n=>!used.has(String(n))),lbMissing=keys.filter(k=>k.lb&&k.lbMissing),lbOut=keys.filter(k=>k.lb);
    const metrics=[['KEY TAGS',keys.length,'allkeys'],['AVAILABLE KEYS',keyAvailable.length,'availablekeys'],['KEYS CHECKED OUT',keyOut.length,'keyout'],['MISSING KEYS',keyMissing.length,'missingkeys'],['LOCKBOXES',lbInventory.length,'alllb'],['AVAILABLE LB',lbAvailable.length,'availablelb'],['LB CHECKED OUT',lbOut.length,'lbout'],['MISSING LB',lbMissing.length,'missinglb']];
    let detail='';
-   if(reportDrill){let title='',items=[];const kr=(arr,fn)=>arr.map(k=>({address:k.address||`Tag #${k.tag}`,detail:fn(k)}));
+   if(reportDrill){let title='',items=[];const kr=(arr,fn)=>arr.map(k=>({address:k.address||`Tag #${k.tag}`,detail:fn(k),targetType:'key',targetId:k.id}));
     if(reportDrill==='allkeys'){title='All Key Tags';items=kr(keys,k=>`Tag #${k.tag}`)}
     if(reportDrill==='availablekeys'){title='Available Key Tags';items=kr(keyAvailable,k=>`Tag #${k.tag}`)}
     if(reportDrill==='keyout'){title='Keys Checked Out';items=kr(keyOut,k=>`Tag #${k.tag} · ${k.keyOut?.to||''}`)}
     if(reportDrill==='missingkeys'){title='Missing Keys';items=kr(keyMissing,k=>`Tag #${k.tag}`)}
-    if(reportDrill==='alllb'){title='All Lockboxes';items=lbInventory.map(n=>({address:`LB #${n}`,detail:used.has(String(n))?'Checked out':'Available'}))}
+    if(reportDrill==='alllb'){title='All Lockboxes';items=lbInventory.map(n=>{const k=keys.find(v=>v.lb&&String(v.lb.number)===String(n));return {address:`LB #${n}`,detail:k?`Checked out · ${k.address||`Tag #${k.tag}`}`:'Available',...(k?{targetType:'key',targetId:k.id}:{})}})}
     if(reportDrill==='availablelb'){title='Available Lockboxes';items=lbAvailable.map(n=>({address:`LB #${n}`,detail:'Available'}))}
     if(reportDrill==='lbout'){title='Lockboxes Checked Out';items=kr(lbOut,k=>`LB #${k.lb.number}`)}
     if(reportDrill==='missinglb'){title='Missing Lockboxes';items=kr(lbMissing,k=>`LB #${k.lb.number}`)}
@@ -519,10 +532,11 @@ function renderReports(){
  } else {
    const turnTimes=data.filter(x=>x.type==='turn'&&get(x,'Keys Returned')&&get(x,'Mailed Disposition')).map(x=>diffDays(get(x,'Keys Returned'),get(x,'Mailed Disposition'))),listingTimes=data.filter(x=>x.type==='listing'&&get(x,'Listed')&&get(x,'Signed Lease Received')).map(x=>diffDays(get(x,'Listed'),get(x,'Signed Lease Received'))),totalTimes=data.filter(x=>x.type==='listing'&&x.sourceKeysReturned&&get(x,'Signed Lease Received')).map(x=>diffDays(x.sourceKeysReturned,get(x,'Signed Lease Received')));
    const metrics=[['UPCOMING TURNS',upcoming.length,'upcoming'],['ACTIVE TURNS',activeTurns.length,'activeturns'],['LISTED',listed.length,'listed'],['PENDING',pending.length,'pending'],['OUT FOR SIGNING',signing.length,'signing'],['RENTED',rented.length,'rented'],['AVG TURN TIME',avg(turnTimes)+' days','avgturn'],['AVG LISTING TIME',avg(listingTimes)+' days','avglisting'],['AVG TOTAL TIME',avg(totalTimes)+' days','avgtotal']];
-   let detail='';if(reportDrill){let title='',arr=[];if(reportDrill==='upcoming'){title='Upcoming Turns';arr=upcoming.map(x=>({address:x.address,detail:`Move Out ${short(get(x,'Move Out'))||'—'}`}))}if(reportDrill==='activeturns'){title='Active Turns';arr=activeTurns.map(x=>({address:x.address,detail:`${turnDays(x)} / 31 days`}))}if(reportDrill==='listed'){title='Listed';arr=listed.map(x=>({address:x.address,detail:`${listingDays(x)} days`}))}if(reportDrill==='pending'){title='Pending';arr=pending.map(x=>({address:x.address,detail:`${listingDays(x)} days`}))}if(reportDrill==='signing'){title='Out for Signing';arr=signing.map(x=>({address:x.address,detail:`Lease sent ${short(get(x,'Lease Sent'))}`}))}if(reportDrill==='rented'){title='Rented';arr=rented.map(x=>({address:x.address,detail:`Signed ${short(get(x,'Signed Lease Received'))}`}))}if(title)detail=reportRows(title,arr)}
+   let detail='';if(reportDrill){let title='',arr=[];if(reportDrill==='upcoming'){title='Upcoming Turns';arr=upcoming.map(x=>({address:x.address,detail:`Move Out ${short(get(x,'Move Out'))||'—'}`,targetType:'project',targetId:x.id}))}if(reportDrill==='activeturns'){title='Active Turns';arr=activeTurns.map(x=>({address:x.address,detail:`${turnDays(x)} / 31 days`,targetType:'project',targetId:x.id}))}if(reportDrill==='listed'){title='Listed';arr=listed.map(x=>({address:x.address,detail:`${listingDays(x)} days`,targetType:'project',targetId:x.id}))}if(reportDrill==='pending'){title='Pending';arr=pending.map(x=>({address:x.address,detail:`${listingDays(x)} days`,targetType:'project',targetId:x.id}))}if(reportDrill==='signing'){title='Out for Signing';arr=signing.map(x=>({address:x.address,detail:`Lease sent ${short(get(x,'Lease Sent'))}`,targetType:'project',targetId:x.id}))}if(reportDrill==='rented'){title='Rented';arr=rented.map(x=>({address:x.address,detail:`Signed ${short(get(x,'Signed Lease Received'))}`,targetType:'project',targetId:x.id}))}if(title)detail=reportRows(title,arr)}
    rows.innerHTML=`<div class="report-page"><div class="report-heading"><h1>Live Operations</h1><p>Current TurnFlow workload and cycle-time metrics.</p></div><div class="report-metrics">${metrics.map(m=>reportMetric(...m)).join('')}</div>${detail}</div>`;
  }
  rows.querySelectorAll('[data-report-drill]').forEach(b=>b.onclick=()=>{const k=b.dataset.reportDrill;if(!k)return;reportDrill=reportDrill===k?'':k;renderReports()});
+ rows.querySelectorAll('[data-report-target]').forEach(b=>b.onclick=()=>openReportRecord(b.dataset.reportTarget,b.dataset.reportId));
 }
 function renderSettings(){
   $('.board-head').style.display='none';
