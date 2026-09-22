@@ -513,7 +513,7 @@ function renderReports(){
    let detail='';
    if(reportDrill){let title='',items=[];const kr=(arr,fn)=>arr.map(k=>({address:k.address||`Tag #${k.tag}`,detail:fn(k),targetType:'key',targetId:k.id}));
     if(reportDrill==='allkeys'){title='All Key Tags';items=kr(keys,k=>`Tag #${k.tag}`)}
-    if(reportDrill==='availablekeys'){title='Available Key Tags';items=kr(keyAvailable,k=>`Tag #${k.tag}`)}
+    if(reportDrill==='availablekeys'){title='Available Key Tags';items=kr(keyAvailable,k=>'')}
     if(reportDrill==='keyout'){title='Keys Checked Out';items=kr(keyOut,k=>`Tag #${k.tag} · ${k.keyOut?.to||''}`)}
     if(reportDrill==='missingkeys'){title='Missing Keys';items=kr(keyMissing,k=>`Tag #${k.tag}`)}
     if(reportDrill==='alllb'){title='All Lockboxes';items=lbInventory.map(n=>{const k=keys.find(v=>v.lb&&String(v.lb.number)===String(n));return {address:`LB #${n}`,detail:k?`Checked out · ${k.address||`Tag #${k.tag}`}`:'Available',...(k?{targetType:'key',targetId:k.id}:{})}})}
