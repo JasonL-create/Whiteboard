@@ -964,33 +964,57 @@ async function syncNormalizedChanges(){
   }
 }
 
+async function fetchSharedProjects(){
+  const [prjRes,propRes]=await Promise.all([
+    sb.from('projects').select('*').eq('organization_id',cloudOrgId),
+    sb.from('properties').select('*').eq('organization_id',cloudOrgId)
+  ]);
+  if(prjRes.error)throw prjRes.error;
+  if(propRes.error)throw propRes.error;
+  return {projects:prjRes.data||[],properties:propRes.data||[]};
+}
+function applySharedProjects(rowsData,{renderUI=true}={}){
+  const preservedProject=document.querySelector('#rows .row.open')?.dataset.id ?? openId;
+  const propMap=new Map((rowsData.properties||[]).map(p=>[p.id,p]));
+  propertyIdByNorm=new Map((rowsData.properties||[]).map(p=>[p.normalized_address,p.id]));
+  data=(rowsData.projects||[]).map(r=>rowToProject(r,propMap.get(r.property_id)?.address||'Unknown Property'));
+  localStorage.setItem('whiteboardData',JSON.stringify(data));
+  openId=(preservedProject!=null && data.some(x=>String(x.id)===String(preservedProject)))?preservedProject:null;
+  normalizedProjectBaseline=new Map(data.map(x=>[String(x.id),stableJSON(stableProjectShape(x))]));
+  normalizedFingerprint=normalizedStateFingerprint();
+  // A remote Project change must never rebuild a user's Keys/Configure screen.
+  if(renderUI && view==='board')renderPreservingViewport();
+  else if(renderUI && view==='reports')renderReportsPreservingViewport();
+}
+function renderPreservingViewport(){
+  const x=window.scrollX,y=window.scrollY;
+  render();
+  requestAnimationFrame(()=>window.scrollTo(x,y));
+}
+function renderReportsPreservingViewport(){
+  const x=window.scrollX,y=window.scrollY;
+  renderReports();
+  requestAnimationFrame(()=>window.scrollTo(x,y));
+}
 async function refreshNormalizedFromServer(showMessage=true){
   if(!normalizedReady)return;
-  if(normalizedSaving||dirtyKeyIds.size||normalizedSaveTimer){
+  if(normalizedSaving||normalizedSaveTimer){
     clearTimeout(normalizedRefreshTimer);
     normalizedRefreshTimer=setTimeout(()=>refreshNormalizedFromServer(showMessage),250);
     return
   }
   try{
-    const before=normalizedStateFingerprint();
-    const fresh=await fetchNormalized();
-
-    // Build incoming fingerprint without permanently changing current UI first.
-    const currentData=data,currentKeys=keys,currentLB=lbInventory;
-    const currentOpen=openId,currentKeyOpen=keyOpenId;
-    const currentProjectBaseline=normalizedProjectBaseline,currentKeyBaseline=normalizedKeyBaseline,currentLBSet=normalizedLBSet,currentFP=normalizedFingerprint;
-    applyNormalized(fresh,{renderUI:false});
-    const incoming=normalizedStateFingerprint();
-
+    const before=stableJSON(data.map(stableProjectShape).sort((a,b)=>a.id.localeCompare(b.id)));
+    const fresh=await fetchSharedProjects();
+    const propMap=new Map((fresh.properties||[]).map(p=>[p.id,p]));
+    const incomingProjects=(fresh.projects||[]).map(r=>rowToProject(r,propMap.get(r.property_id)?.address||'Unknown Property'));
+    const incoming=stableJSON(incomingProjects.map(stableProjectShape).sort((a,b)=>a.id.localeCompare(b.id)));
     if(incoming!==before){
-      openId=(currentOpen!=null && data.some(x=>String(x.id)===String(currentOpen)))?currentOpen:null;
-      keyOpenId=(currentKeyOpen!=null && keys.some(x=>String(x.id)===String(currentKeyOpen)))?currentKeyOpen:null;
-      normalizedFingerprint=incoming;
-      render();
-      if(showMessage)syncToast('Updated from shared records');
+      applySharedProjects(fresh,{renderUI:true});
+      if(showMessage)syncToast('Projects updated from shared records');
     }else{
-      // applyNormalized already refreshed baselines/local cache; no render needed.
-      normalizedFingerprint=incoming;
+      // Refresh project baselines/property map without touching Keys or the current UI.
+      applySharedProjects(fresh,{renderUI:false});
     }
   }catch(err){console.error('TurnFlow normalized refresh failed',err)}
 }
@@ -1078,7 +1102,12 @@ async function refreshSharedKeys(showMessage=true){
     localStorage.setItem('whiteboardKeysV11',JSON.stringify(keys));
     localStorage.setItem('whiteboardLBInventoryV11',JSON.stringify(lbInventory));
     if(incoming!==before){
-      if(view==='keys')renderKeys(); else renderShell();
+      // A remote Key/Lockbox change must not rebuild Projects, Reports or Configure.
+      if(view==='keys'){
+        const sx=window.scrollX,sy=window.scrollY;
+        renderKeys();
+        requestAnimationFrame(()=>window.scrollTo(sx,sy));
+      }
       if(showMessage)syncToast('Keys updated from shared records');
     }
   }catch(err){console.error('TurnFlow Key refresh failed',err)}
@@ -1100,8 +1129,8 @@ async function startNormalizedMode(snapshot){
   normalizedReady=true;
 
   // Record-level realtime: any insert/update/delete in the normalized tables
-  // triggers a debounced authoritative refresh. This restores true live updates
-  // without returning to whole-workspace snapshot writes.
+  // refreshes only that data domain. Remote Project events never rebuild a Keys screen,
+  // and remote Key events never rebuild Projects/Reports/Configure.
   if(normalizedChannel)await sb.removeChannel(normalizedChannel);
   normalizedChannel=sb.channel('turnflow-normalized-'+cloudOrgId);
   for(const table of ['projects']){

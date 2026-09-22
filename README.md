@@ -241,3 +241,10 @@ The filter/sort dropdowns were moved into `#pageHero`, but their click handlers 
 
 ## v79 additional sort options
 Keeps all restored v78 filters/sorts and adds Projects status ordering in either direction plus Keys Available First / Assigned First. No data/schema/sync changes.
+
+## v88 multi-user isolation
+- Separates Project realtime refreshes from Key/Lockbox realtime refreshes.
+- A Project change in another browser no longer fetches/replaces Keys or rebuilds a user's Keys/Configure screen.
+- A Key/Lockbox change no longer rebuilds Projects, Reports, or Configure in another browser.
+- Preserves the current open card and viewport when a same-domain remote update does need to redraw the visible list.
+- Keeps normalized Supabase tables authoritative; no schema change is required.
