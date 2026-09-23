@@ -1484,17 +1484,31 @@ function showPendingAccess(){
  clearInterval(pendingUserApprovalTimer);pendingUserApprovalTimer=setInterval(async()=>{if(!cloudUser)return;try{const memberships=await loadMembership();if(memberships.length){clearInterval(pendingUserApprovalTimer);pendingUserApprovalTimer=null;await connectWorkspace(memberships[0].organization_id,memberships[0].role)}}catch(err){if(err?.code!=='PENDING_ACCESS'&&err?.message!=='PENDING_ACCESS')console.warn('TurnFlow approval check:',err)}},3000);
 }
 function showLoginPane(){clearInterval(pendingUserApprovalTimer);pendingUserApprovalTimer=null;document.querySelector('#pendingAccessPane').classList.add('hidden');document.querySelector('#workspacePane').classList.add('hidden');document.querySelector('#resetPasswordPane').classList.add('hidden');document.querySelector('#authLoginPane').classList.remove('hidden');document.querySelector('#authGate').classList.remove('hidden')}
+function isPasswordRecoveryCallback(){
+  const search=new URLSearchParams(window.location.search);
+  const hash=new URLSearchParams(window.location.hash.replace(/^#/,''));
+  return search.get('type')==='recovery'||hash.get('type')==='recovery';
+}
+function showResetPasswordPane(){
+  document.querySelector('#authLoginPane').classList.add('hidden');
+  document.querySelector('#workspacePane').classList.add('hidden');
+  document.querySelector('#pendingAccessPane').classList.add('hidden');
+  document.querySelector('#resetPasswordPane').classList.remove('hidden');
+  document.querySelector('#authGate').classList.remove('hidden');
+}
 async function bootSupabase(){
+  const recoveryCallback=isPasswordRecoveryCallback();
   try{
     const {data:{session}}=await sb.auth.getSession();
-    if(session?.user){const {data:{user},error}=await sb.auth.getUser();if(error||!user){await sb.auth.signOut({scope:'local'});showLoginPane()}else await afterAuth(user)}
+    if(recoveryCallback&&session?.user){cloudUser=session.user;showResetPasswordPane()}
+    else if(session?.user){const {data:{user},error}=await sb.auth.getUser();if(error||!user){await sb.auth.signOut({scope:'local'});showLoginPane()}else await afterAuth(user)}
     else document.querySelector('#authGate').classList.remove('hidden');
   }finally{
     document.body.classList.remove('auth-booting');
   }
 
   sb.auth.onAuthStateChange((event,session)=>{
-    if(event==='PASSWORD_RECOVERY'){document.querySelector('#authLoginPane').classList.add('hidden');document.querySelector('#workspacePane').classList.add('hidden');document.querySelector('#pendingAccessPane').classList.add('hidden');document.querySelector('#resetPasswordPane').classList.remove('hidden');document.querySelector('#authGate').classList.remove('hidden');return}
+    if(event==='PASSWORD_RECOVERY'){cloudUser=session?.user||cloudUser;showResetPasswordPane();return}
     if(!session?.user){
       cloudReady=false;cloudOrgId=null;cloudUser=null;clearInterval(pendingAccessPollTimer);pendingAccessPollTimer=null;clearInterval(pendingUserApprovalTimer);pendingUserApprovalTimer=null;
       document.querySelector('#authGate').classList.remove('hidden');
@@ -1507,7 +1521,7 @@ document.querySelector('#forgotPassword').onclick=async()=>{
  const email=document.querySelector('#authEmail').value.trim()||String((await turnFlowDialog({title:'Reset Password',message:'Enter the email address used for TurnFlow.',fields:[{label:'Email',type:'email',placeholder:'name@example.com'}],confirmText:'Send Reset Link'}))?.[0]||'').trim();if(!email)return;
  const redirectTo=TURNFLOW_APP_URL;const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo});if(error){authMsg(error.message||'Could not send reset email.');return}authMsg('Password reset email sent. Check your inbox.',true);
 };
-document.querySelector('#resetPasswordForm').onsubmit=async e=>{e.preventDefault();const p=document.querySelector('#resetPassword').value,c=document.querySelector('#resetPasswordConfirm').value,m=document.querySelector('#resetPasswordMessage');m.textContent='';m.classList.remove('success');if(p!==c){m.textContent='Passwords do not match.';return}const btn=e.currentTarget.querySelector('button');btn.disabled=true;const {error}=await sb.auth.updateUser({password:p});btn.disabled=false;if(error){m.textContent=error.message;return}m.textContent='Password updated. Opening TurnFlow…';m.classList.add('success');const {data:{user}}=await sb.auth.getUser();if(user)await afterAuth(user)};
+document.querySelector('#resetPasswordForm').onsubmit=async e=>{e.preventDefault();const p=document.querySelector('#resetPassword').value,c=document.querySelector('#resetPasswordConfirm').value,m=document.querySelector('#resetPasswordMessage');m.textContent='';m.classList.remove('success');if(p!==c){m.textContent='Passwords do not match.';return}const btn=e.currentTarget.querySelector('button');btn.disabled=true;const {error}=await sb.auth.updateUser({password:p});btn.disabled=false;if(error){m.textContent=error.message;return}m.textContent='Password updated. Opening TurnFlow…';m.classList.add('success');history.replaceState({},document.title,TURNFLOW_APP_URL);const {data:{user}}=await sb.auth.getUser();if(user)await afterAuth(user)};
 document.querySelector('#pendingSignOut').onclick=async()=>{await sb.auth.signOut();location.reload()};
 document.querySelector('#toggleSignup').onclick=()=>{
   signupMode=!signupMode;
