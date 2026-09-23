@@ -61,7 +61,7 @@ function renderRowsOnly(){
  $('.board-head').style.display='grid';
  let list=data.filter(x=>{if(filter==='turns')return !x.archived&&x.type==='turn';if(filter==='listings')return !x.archived&&x.type==='listing';return filter==='archived'?x.archived:!x.archived&&(filter==='all'||state(x)===filter)});
  if(sortMode==='move')list.sort((a,b)=>(get(a,'Scheduled Move Out')||'9999').localeCompare(get(b,'Scheduled Move Out')||'9999'));if(sortMode==='keys')list.sort((a,b)=>(get(a,'Keys Returned')||'9999').localeCompare(get(b,'Keys Returned')||'9999'));if(sortMode==='31')list.sort((a,b)=>turnDays(b)-turnDays(a));if(sortMode==='listing')list.sort((a,b)=>listingDays(b)-listingDays(a));if(sortMode==='status-rented'||sortMode==='status-listed'){const rank=sortMode==='status-rented'?{rented:0,pending:1,listed:2}:{listed:0,pending:1,rented:2};list.sort((a,b)=>{const ar=a.type==='listing'?(rank[state(a)]??3):4,br=b.type==='listing'?(rank[state(b)]??3):4;return ar-br})}
- rows.innerHTML=list.length?list.map(x=>`<section class="row ${x.archived?'archived':''} ${String(openId)===String(x.id)?'open':''}" data-id="${x.id}"><div class="row-main"><div class="type ${x.type==='listing'?listingTypeClass(x):turnTypeClass(x)}">${x.type==='listing'?listingTypeText(x):turnTypeText(x)}</div><div class="property">${x.address}</div><div class="status">${statusHTML(x)}</div>${x.archived?'<div class="archive-pill">ARCHIVED</div>':'<div class="chev">›</div>'}</div>${String(openId)===String(x.id)?detailsHTML(x):''}</section>`).join(''):`<div class="empty">No processes in this view.</div>`;
+ rows.innerHTML=list.length?list.map(x=>`<section class="row ${x.archived?'archived':''} ${String(openId)===String(x.id)?'open':''}" data-id="${x.id}"><div class="row-main"><div class="type ${x.type==='listing'?listingTypeClass(x):turnTypeClass(x)}">${x.type==='listing'?listingTypeText(x):turnTypeText(x)}</div><div class="property">${x.address}${recordLocationBadge(x.locationId)}</div><div class="status">${statusHTML(x)}</div>${x.archived?'<div class="archive-pill">ARCHIVED</div>':'<div class="chev">›</div>'}</div>${String(openId)===String(x.id)?detailsHTML(x):''}</section>`).join(''):`<div class="empty">No processes in this view.</div>`;
  bindBoardRows();
 }
 function bindBoardRows(){rows.querySelectorAll('.row-main').forEach(el=>el.onclick=()=>{const id=el.parentElement.dataset.id;openId=String(openId)===String(id)?null:id;render()});rows.querySelectorAll('.proc-control').forEach(el=>el.onchange=()=>{const x=data.find(y=>String(y.id)===el.closest('.row').dataset.id),p=x.process[+el.dataset.i];p.value=p.kind==='check'?el.checked:el.value;save();render()});rows.querySelectorAll('.proc-note').forEach(el=>el.oninput=()=>{const x=data.find(y=>String(y.id)===el.closest('.row').dataset.id),p=x.process[+el.dataset.i];p.note=el.value;save()});rows.querySelectorAll('.notes textarea').forEach(el=>el.oninput=()=>{data.find(y=>String(y.id)===el.closest('.row').dataset.id).notes=el.value;save()});rows.querySelectorAll('.meta-control').forEach(el=>el.onchange=()=>{const x=data.find(y=>String(y.id)===el.closest('.row').dataset.id);x[el.dataset.field]=el.value;save();render()});rows.querySelectorAll('.project-complete-check').forEach(el=>el.onchange=()=>{const x=data.find(y=>String(y.id)===el.closest('.row').dataset.id);x.completed=el.checked;if(x.completed)x.keepVisible=true;else x.keepVisible=true;save();render()});rows.querySelectorAll('.keep-visible-check').forEach(el=>el.onchange=()=>{const x=data.find(y=>String(y.id)===el.closest('.row').dataset.id);x.keepVisible=el.checked;if(x.completed&&!x.keepVisible){x.archived=true;x.archivedAt=TODAY;openId=null;}save();render()});rows.querySelectorAll('[data-action]').forEach(b=>b.onclick=e=>{e.stopPropagation();handleAction(b.dataset.action,b.closest('.row').dataset.id)})}
@@ -143,30 +143,39 @@ function knownProperties(){const m=new Map();[...data.map(x=>x.address),...keys.
 function propertyContext(address){const n=normalizeAddress(address),active=data.filter(x=>!x.archived&&normalizeAddress(x.address)===n);if(active.some(x=>x.type==='turn'))return 'Active Turn';if(active.some(x=>x.type==='listing'))return 'Active Listing';return ''}
 function escAttr(v){return String(v||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;')}
 function updateAddressSuggestions(){const input=$('#newAddress'),box=$('#addressSuggestions'),note=$('#addressMatchNote');if(!input||!box||!note)return;const raw=input.value.trim(),q=normalizeAddress(raw);box.innerHTML='';box.classList.add('hidden');note.classList.add('hidden');if(!q)return;const matches=knownProperties().filter(a=>normalizeAddress(a).includes(q)||a.toLowerCase().includes(raw.toLowerCase())).slice(0,7);if(matches.length){box.innerHTML=matches.map(a=>{const ctx=propertyContext(a);return `<button type="button" class="address-suggestion" data-address="${escAttr(a)}"><span class="suggestion-house" aria-hidden="true">⌂</span><span class="suggestion-copy"><strong>${a}</strong>${ctx?`<small>${ctx}</small>`:''}</span>${ctx?`<span class="suggestion-status ${ctx==='Active Listing'?'listing':'turn'}">${ctx}</span>`:''}</button>`}).join('');box.classList.remove('hidden');box.querySelectorAll('.address-suggestion').forEach(b=>b.onclick=()=>{input.value=b.dataset.address;box.classList.add('hidden');note.classList.add('hidden');input.focus()})}const canonical=knownProperties().find(a=>normalizeAddress(a)===q);if(canonical&&canonical.toLowerCase()!==raw.toLowerCase()){note.innerHTML=`Possible existing property: <strong>${canonical}</strong>`;note.classList.remove('hidden')}}
-const modal=$('#modal');function showModal(v){modal.classList.toggle('hidden',!v);if(v){setTimeout(()=>$('#newAddress').focus(),0);updateAddressSuggestions()}else{$('#addressSuggestions')?.classList.add('hidden');$('#addressMatchNote')?.classList.add('hidden')}}const legacyNewProcess=$('#newProcess');if(legacyNewProcess)legacyNewProcess.onclick=()=>showModal(true);$('#closeModal').onclick=$('#cancelModal').onclick=()=>showModal(false);$('#newAddress').addEventListener('input',updateAddressSuggestions);document.querySelectorAll('.project-type-choice').forEach(b=>b.onclick=()=>{document.querySelectorAll('.project-type-choice').forEach(x=>x.classList.remove('selected'));b.classList.add('selected');$('#newType').value=b.dataset.projectType;updateAddressSuggestions()});$('#newForm').onsubmit=async e=>{
+const modal=$('#modal');function showModal(v){writeLocationOverride=null;modal.classList.toggle('hidden',!v);if(v){const wrap=$('#newLocationWrap'),sel=$('#newLocation');if(wrap&&sel){wrap.classList.toggle('hidden',!isAllLocations());sel.innerHTML='<option value="">Choose location…</option>'+turnflowLocations.map(l=>`<option value="${l.id}">${escapeHTML(l.name)}</option>`).join('')}setTimeout(()=>$('#newAddress').focus(),0);updateAddressSuggestions()}else{$('#addressSuggestions')?.classList.add('hidden');$('#addressMatchNote')?.classList.add('hidden')}}const legacyNewProcess=$('#newProcess');if(legacyNewProcess)legacyNewProcess.onclick=()=>showModal(true);$('#closeModal').onclick=$('#cancelModal').onclick=()=>showModal(false);$('#newAddress').addEventListener('input',updateAddressSuggestions);document.querySelectorAll('.project-type-choice').forEach(b=>b.onclick=()=>{document.querySelectorAll('.project-type-choice').forEach(x=>x.classList.remove('selected'));b.classList.add('selected');$('#newType').value=b.dataset.projectType;updateAddressSuggestions()});$('#newForm').onsubmit=async e=>{
  e.preventDefault();
  const type=$('#newType').value;
  let address=$('#newAddress').value.trim();
  const canonical=knownProperties().find(a=>normalizeAddress(a)===normalizeAddress(address));
  if(canonical)address=canonical;
- const sameActive=data.find(y=>!y.archived&&y.type===type&&normalizeAddress(y.address)===normalizeAddress(address));
+ const existingLocation=propertyLocationByNorm.get(normalizeAddress(address))||'';
+ let creationLocation=currentLocationId||existingLocation;
+ if(isAllLocations()){
+   const sel=$('#newLocation');
+   creationLocation=existingLocation||sel?.value||'';
+   if(!creationLocation){await tfAlert('Location Required','Choose Medford or Eugene before creating this project.');return}
+ }
+ const sameActive=data.find(y=>!y.archived&&y.type===type&&normalizeAddress(y.address)===normalizeAddress(address) && (!creationLocation||String(y.locationId)===String(creationLocation)));
  if(sameActive&&!confirm(`${address} already has an active ${type==='turn'?'Turn':'Listing'}. Create another anyway?`))return;
 
- let assignedKey=keys.find(k=>k.address&&normalizeAddress(k.address)===normalizeAddress(address));
+ let assignedKey=keys.find(k=>k.address&&normalizeAddress(k.address)===normalizeAddress(address)&&(!creationLocation||String(k.locationId)===String(creationLocation)));
  if(!assignedKey){
-   const available=keys.filter(k=>!k.address).slice().sort((a,b)=>String(a.tag).localeCompare(String(b.tag),undefined,{numeric:true}));
+   const available=keys.filter(k=>!k.address&&(!creationLocation||String(k.locationId)===String(creationLocation))).slice().sort((a,b)=>String(a.tag).localeCompare(String(b.tag),undefined,{numeric:true}));
    if(!available.length){await tfAlert('Key Tag Required',`<strong>${escapeHTML(address)}</strong> does not have a Key Tag assigned, and there are no AVAILABLE Key Tags. Add an Available Key Tag before starting this project.`);return}
    const choice=await turnFlowDialog({title:'Key Tag Required',message:`<strong>${escapeHTML(address)}</strong> does not have a Key Tag assigned. Select an Available tag before creating this project.`,fields:[{label:'Available Key Tag',type:'select',options:available.map(k=>({value:k.id,label:`Tag #${k.tag}`}))}],confirmText:'Assign Tag & Create Project'});
    if(!choice)return;assignedKey=available.find(k=>String(k.id)===String(choice[0]));
    if(!assignedKey){await tfAlert('Key Tag Unavailable','That Key Tag is no longer available.');return}
+   writeLocationOverride=creationLocation;
    const assigned=await assignAvailableKeyToProperty(assignedKey,address);
    if(!assigned){await tfAlert('Could Not Assign Key Tag','The Key Tag could not be assigned. The project was not created.');return}
  }
- const x={id:Date.now(),address,type,archived:false,completed:false,keepVisible:true,notes:'',process:type==='turn'?turnProcess():listingProcess()};
+ const x={id:Date.now(),address,type,locationId:creationLocation||'',archived:false,completed:false,keepVisible:true,notes:'',process:type==='turn'?turnProcess():listingProcess()};
  if(type==='listing'){x.price='';x.securityDeposit='';x.sourceKeysReturned=''}
  // A new project must have its permanent Supabase ID before the card becomes editable.
  // Otherwise first-pass edits can target the temporary Date.now() ID and be lost when
  // the normalized record is loaded back from the server.
+ writeLocationOverride=creationLocation;
  if(normalizedReady){
    try{
      const propertyId=await ensureProperty(x.address);
@@ -178,12 +187,12 @@ const modal=$('#modal');function showModal(v){modal.classList.toggle('hidden',!v
    }catch(err){
      console.error('TurnFlow create project:',err);
      await tfAlert('Could Not Create Project','TurnFlow could not save this project to shared storage. Nothing was created. Please try again.');
-     return;
+     writeLocationOverride=null;return;
    }
  }
  data.unshift(x);save();filter='all';view='board';openId=x.id;e.target.reset();$('#newType').value='turn';
  document.querySelectorAll('.project-type-choice').forEach(b=>b.classList.toggle('selected',b.dataset.projectType==='turn'));
- showModal(false);render()
+ showModal(false);writeLocationOverride=null;render()
 };
 save();
 
@@ -205,7 +214,7 @@ function saveKeys(changedKey=null){
 }
 function keyByAddress(a){return keys.find(k=>k.address.toLowerCase()===a.toLowerCase())}
 function usedLBs(){return new Set(keys.filter(k=>k.lb).map(k=>String(k.lb.number)))}
-function availableLBOptions(current=''){const used=usedLBs();return lbInventory.slice().sort((a,b)=>+a-+b).map(n=>`<option value="${n}" ${String(current)===String(n)?'selected':''} ${used.has(String(n))&&String(current)!==String(n)?'disabled':''}>LB #${n}${used.has(String(n))&&String(current)!==String(n)?' — checked out':''}</option>`).join('')}
+function availableLBOptions(current='',locationId=''){const used=usedLBs();return lbInventory.filter(n=>!locationId||String(lbLocationByNumber.get(String(n))||'')===String(locationId)).slice().sort((a,b)=>+a-+b).map(n=>`<option value="${n}" ${String(current)===String(n)?'selected':''} ${used.has(String(n))&&String(current)!==String(n)?'disabled':''}>LB #${n}${used.has(String(n))&&String(current)!==String(n)?' — checked out':''}</option>`).join('')}
 function logKey(k,event,detail,date=TODAY){k.history=k.history||[];k.history.unshift({date,event,detail})}
 function renderKeyNav(){const out=keys.filter(k=>k.keyOut||k.keyMissing).length,lbOut=keys.filter(k=>k.lb).length;return `<div class="keys-section-title">Keys</div><div class="keys-toolbar"><div class="keys-summary"><button class="filter-btn">LB Out <b>${lbOut}</b></button><button class="filter-btn">Keys Out <b>${out}</b></button></div><div class="spacer"></div><button id="lbInventory" class="action-secondary">Lockbox Inventory</button><button id="addKeyTag" class="primary">+ Add Key Tag</button></div>`}
 function processSearchText(x){return [x.address,x.type,x.notes,x.price,x.securityDeposit,...(x.process||[]).flatMap(p=>[p.name,p.value,p.note])].filter(Boolean).join(' ').toLowerCase()}
@@ -237,7 +246,7 @@ function renderUniversalSearch(q){
  $('.board-head').style.display='none';
  const processMatches=data.filter(x=>processSearchText(x).includes(q));
  const keyMatches=keys.filter(k=>keySearchText(k).includes(q));
- const processHTML=processMatches.map(x=>`<section class="row ${x.archived?'archived':''} ${String(openId)===String(x.id)?'open':''}" data-id="${x.id}"><div class="row-main"><div class="type ${x.type==='listing'?listingTypeClass(x):turnTypeClass(x)}">${x.type==='listing'?listingTypeText(x):turnTypeText(x)}</div><div class="property">${x.address}</div><div class="status">${statusHTML(x)}</div>${x.archived?'<div class="archive-pill">ARCHIVED</div>':'<div class="chev">›</div>'}</div>${String(openId)===String(x.id)?detailsHTML(x):''}</section>`).join('');
+ const processHTML=processMatches.map(x=>`<section class="row ${x.archived?'archived':''} ${String(openId)===String(x.id)?'open':''}" data-id="${x.id}"><div class="row-main"><div class="type ${x.type==='listing'?listingTypeClass(x):turnTypeClass(x)}">${x.type==='listing'?listingTypeText(x):turnTypeText(x)}</div><div class="property">${x.address}${recordLocationBadge(x.locationId)}</div><div class="status">${statusHTML(x)}</div>${x.archived?'<div class="archive-pill">ARCHIVED</div>':'<div class="chev">›</div>'}</div>${String(openId)===String(x.id)?detailsHTML(x):''}</section>`).join('');
  const keyHTML=keyMatches.map(keyRowHTML).join('');
  rows.innerHTML=(processHTML||keyHTML)?`${processHTML}${keyHTML}`:'<div class="empty">No results found.</div>';
  highlightSearchMatches(rows,q);
@@ -247,8 +256,8 @@ function renderUniversalSearch(q){
 }
 function renderKeyRowsOnly(){const q=(($('#search')?.value)||'').trim().toLowerCase();let list=keys.filter(k=>!q||[k.tag,k.address,k.notes,k.lb?.number,k.keyOut?.to,...(k.history||[]).map(h=>h.detail)].filter(Boolean).join(' ').toLowerCase().includes(q));if(keyFilter==='lb')list=list.filter(k=>k.lb);if(keyFilter==='keys')list=list.filter(k=>k.keyOut||k.keyMissing);list=list.slice().sort((a,b)=>{if(keySort==='address'){const addr=x=>{const v=String(x.address||'').trim();return /^available$/i.test(v)?'':v};const aa=addr(a),bb=addr(b);if(!aa&&!bb)return String(a.tag).localeCompare(String(b.tag),undefined,{numeric:true});if(!aa)return 1;if(!bb)return -1;return aa.localeCompare(bb,undefined,{numeric:true,sensitivity:'base'})};if(keySort==='available'||keySort==='assigned'){const aa=a.address?1:0,bb=b.address?1:0;if(aa!==bb)return keySort==='available'?aa-bb:bb-aa}if(keySort==='missing-key'){const aa=a.keyMissing?0:1,bb=b.keyMissing?0:1;if(aa!==bb)return aa-bb}if(keySort==='missing-lb'){const aa=a.lbMissing?0:1,bb=b.lbMissing?0:1;if(aa!==bb)return aa-bb}return String(a.tag).localeCompare(String(b.tag),undefined,{numeric:true})});rows.innerHTML=list.length?list.map(keyRowHTML).join(''):'<div class="empty">No key tags found.</div>';rows.querySelectorAll('.key-main').forEach(e=>e.onclick=()=>{keyOpenId=keyOpenId===e.parentElement.dataset.kid?null:e.parentElement.dataset.kid;renderKeys()});bindKeyActions()}
 function renderKeys(){view='keys';renderShell();$('.board-head').style.display='none';renderKeyRowsOnly()}
-function keyRowHTML(k){const keyStatus=k.keyMissing?'KEY MISSING':k.keyOut?`Out to ${k.keyOut.to}`:'Office';const lbStatus=k.lbMissing?'LB MISSING':k.lb?`LB #${k.lb.number}`:'No LB assigned';return `<section class="key-row ${keyOpenId===k.id?'open':''}" data-kid="${k.id}"><div class="key-main"><div><span class="key-sub">TAG</span> <span class="key-tag">#${k.tag}</span></div><div><div class="key-address ${k.address?'':'key-available'}">${k.address||'AVAILABLE'}</div></div><div class="key-state ${k.keyMissing?'missing-status':''}"><span class="key-location-label">KEY LOCATION</span><div><span class="key-location-value ${k.keyMissing?'missing-status':''}">${keyStatus}</span>${k.keyOut&&!k.keyMissing?` <span class="key-location-date">${k.keyOut.date}</span>`:''}</div></div><div class="key-state key-lb ${k.lbMissing?'missing-status':''}">${lbStatus}</div><div>›</div></div>${keyOpenId===k.id?keyDetailsHTML(k):''}</section>`}
-function keyDetailsHTML(k){const hist=(k.history||[]).length?(k.history||[]).map(h=>`<div class="history-row"><div>${short(h.date)}</div><div><strong>${h.event}</strong></div><div>${h.detail||''}</div></div>`).join(''):'<div class="key-sub">No history yet.</div>';return `<div class="key-details"><div class="key-action-grid"><div><strong>Key Check Out</strong></div><div><input class="key-out-date" type="date" value=""></div><div><input class="key-out-to" placeholder="Out to…" value=""></div><div><button class="action-secondary key-checkout" disabled>Check Out Key</button></div><div><strong>Key Return</strong></div><div><input class="key-return-date" type="date" value=""></div><div class="action-detail-spacer"></div><div><button class="action-secondary key-return" disabled>Return Key</button></div><div class="section-gap"></div><div><strong>LB Check Out</strong></div><div><input class="lb-out-date" type="date" value=""></div><div><select class="lb-select"><option value="">Select available LB…</option>${availableLBOptions(k.lb?.number||'')}</select></div><div><button class="action-secondary lb-checkout" disabled>Check Out LB</button></div><div><strong>LB Return</strong></div><div><input class="lb-return-date" type="date" value=""></div><div class="action-detail-spacer"></div><div><button class="action-secondary lb-return" disabled>Return LB</button></div></div><div class="key-notes-panel"><label>Notes</label><textarea class="key-notes" placeholder="Add notes about this key or property…">${(k.notes||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea></div><div class="key-history"><details><summary><strong>History</strong></summary>${hist}</details></div><div class="key-more"><details><summary>More</summary><div class="card-actions"><button class="action-secondary key-missing">${k.keyMissing?'Mark Key Found':'Key Missing'}</button><button class="action-secondary lb-missing">${k.lbMissing?'Mark LB Found':'LB Missing'}</button><button class="action-secondary edit-key">Edit Key Tag / Property</button></div></details></div></div>`}
+function keyRowHTML(k){const keyStatus=k.keyMissing?'KEY MISSING':k.keyOut?`Out to ${k.keyOut.to}`:'Office';const lbStatus=k.lbMissing?'LB MISSING':k.lb?`LB #${k.lb.number}`:'No LB assigned';return `<section class="key-row ${keyOpenId===k.id?'open':''}" data-kid="${k.id}"><div class="key-main"><div><span class="key-sub">TAG</span> <span class="key-tag">#${k.tag}</span></div><div><div class="key-address ${k.address?'':'key-available'}">${k.address||'AVAILABLE'}${recordLocationBadge(k.locationId)}</div></div><div class="key-state ${k.keyMissing?'missing-status':''}"><span class="key-location-label">KEY LOCATION</span><div><span class="key-location-value ${k.keyMissing?'missing-status':''}">${keyStatus}</span>${k.keyOut&&!k.keyMissing?` <span class="key-location-date">${k.keyOut.date}</span>`:''}</div></div><div class="key-state key-lb ${k.lbMissing?'missing-status':''}">${lbStatus}</div><div>›</div></div>${keyOpenId===k.id?keyDetailsHTML(k):''}</section>`}
+function keyDetailsHTML(k){const hist=(k.history||[]).length?(k.history||[]).map(h=>`<div class="history-row"><div>${short(h.date)}</div><div><strong>${h.event}</strong></div><div>${h.detail||''}</div></div>`).join(''):'<div class="key-sub">No history yet.</div>';return `<div class="key-details"><div class="key-action-grid"><div><strong>Key Check Out</strong></div><div><input class="key-out-date" type="date" value=""></div><div><input class="key-out-to" placeholder="Out to…" value=""></div><div><button class="action-secondary key-checkout" disabled>Check Out Key</button></div><div><strong>Key Return</strong></div><div><input class="key-return-date" type="date" value=""></div><div class="action-detail-spacer"></div><div><button class="action-secondary key-return" disabled>Return Key</button></div><div class="section-gap"></div><div><strong>LB Check Out</strong></div><div><input class="lb-out-date" type="date" value=""></div><div><select class="lb-select"><option value="">Select available LB…</option>${availableLBOptions(k.lb?.number||'',k.locationId)}</select></div><div><button class="action-secondary lb-checkout" disabled>Check Out LB</button></div><div><strong>LB Return</strong></div><div><input class="lb-return-date" type="date" value=""></div><div class="action-detail-spacer"></div><div><button class="action-secondary lb-return" disabled>Return LB</button></div></div><div class="key-notes-panel"><label>Notes</label><textarea class="key-notes" placeholder="Add notes about this key or property…">${(k.notes||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea></div><div class="key-history"><details><summary><strong>History</strong></summary>${hist}</details></div><div class="key-more"><details><summary>More</summary><div class="card-actions"><button class="action-secondary key-missing">${k.keyMissing?'Mark Key Found':'Key Missing'}</button><button class="action-secondary lb-missing">${k.lbMissing?'Mark LB Found':'LB Missing'}</button><button class="action-secondary edit-key">Edit Key Tag / Property</button></div></details></div></div>`}
 
 async function saveKeyRowDirect(k,{refresh=true}={}){
   if(!normalizedReady||!cloudOrgId||!cloudUser)return false;
@@ -256,7 +265,7 @@ async function saveKeyRowDirect(k,{refresh=true}={}){
   try{
     const propertyId=k.address?await ensureProperty(k.address):null;
     const row={
-      organization_id:cloudOrgId,property_id:propertyId,tag_number:String(k.tag),
+      organization_id:cloudOrgId,property_id:propertyId,location_id:k.locationId||propertyLocationById.get(propertyId)||requiredWriteLocation(),tag_number:String(k.tag),
       current_location:k.keyMissing?'missing':(k.keyOut?'checked_out':'office'),
       checked_out_to:k.keyOut?.to||null,checked_out_at:k.keyOut?.date||null,
       notes:k.notes||'',created_by:cloudUser.id
@@ -298,7 +307,7 @@ async function appendKeyHistoryDirect(k,h){
   const propertyId=k.address?await ensureProperty(k.address):null;
   const outTo=action==='checkout'?(String(h.detail||'').replace(/^Checked out to\s*/i,'')||k.keyOut?.to||null):null;
   const res=await sb.from('key_transactions').insert({
-    organization_id:cloudOrgId,key_tag_id:k.id,property_id:propertyId,action,
+    organization_id:cloudOrgId,key_tag_id:k.id,property_id:propertyId,location_id:k.locationId||propertyLocationById.get(propertyId)||requiredWriteLocation(),action,
     action_date:h.date||TODAY,out_to:outTo,notes:h.detail||'',performed_by:cloudUser.id
   });
   if(res.error)throw res.error;
@@ -314,7 +323,7 @@ async function recordKeyPropertyHistory(k,{oldAddress='',newAddress='',date=TODA
   // Preserve the related property on the transaction even after the Key Tag becomes Available.
   const propertyId=newAddress?await ensureProperty(newAddress):(oldAddress?await ensureProperty(oldAddress):null);
   const res=await sb.from('key_transactions').insert({
-    organization_id:cloudOrgId,key_tag_id:k.id,property_id:propertyId,
+    organization_id:cloudOrgId,key_tag_id:k.id,property_id:propertyId,location_id:k.locationId||propertyLocationById.get(propertyId)||requiredWriteLocation(),
     action:'location_change',action_date:date,location:'office',
     notes:detail,performed_by:cloudUser.id
   });
@@ -345,7 +354,7 @@ async function saveLockboxAssignmentDirect(k,{returning=false,date=TODAY}={}){
         .select('id,lockbox_number').single();
       if(res.error)throw res.error;
       const tx=await sb.from('lockbox_transactions').insert({
-        organization_id:cloudOrgId,lockbox_id:res.data.id,property_id:propertyId,
+        organization_id:cloudOrgId,lockbox_id:res.data.id,property_id:propertyId,location_id:k.locationId||propertyLocationById.get(propertyId)||requiredWriteLocation(),
         action:'return',action_date:date||TODAY,
         notes:`LB #${number} returned to office`,performed_by:cloudUser.id
       });
@@ -365,7 +374,7 @@ async function saveLockboxAssignmentDirect(k,{returning=false,date=TODAY}={}){
     if(res.error)throw res.error;
     if(!res.data?.length)throw new Error(`LB #${number} is no longer available`);
     const tx=await sb.from('lockbox_transactions').insert({
-      organization_id:cloudOrgId,lockbox_id:res.data[0].id,property_id:propertyId,
+      organization_id:cloudOrgId,lockbox_id:res.data[0].id,property_id:propertyId,location_id:k.locationId||propertyLocationById.get(propertyId)||requiredWriteLocation(),
       action:'assign',action_date:k.lb.outDate||date||TODAY,
       notes:`LB #${number} assigned to property`,performed_by:cloudUser.id
     });
@@ -484,7 +493,7 @@ function bindKeyActions(){
   });
 }
 async function manageLBInventory(){const r=await turnFlowDialog({title:'Lockbox Inventory',message:'Add or edit lockbox numbers.',fields:[{label:'Lockbox Numbers',value:lbInventory.join(', '),placeholder:'e.g. 1, 2, 3'}],confirmText:'Save Inventory'});if(!r)return;lbInventory=[...new Set(r[0].split(',').map(x=>x.trim().replace(/^#/, '')).filter(Boolean))];saveKeys();renderKeys()}
-async function addKeyTag(){const r=await turnFlowDialog({title:'Add Key Tag',message:'Property is optional. Leave it blank to add this tag as AVAILABLE.',fields:[{label:'Key Tag Number',placeholder:'e.g. 25'},{label:'Property Address',placeholder:'Optional — leave blank for AVAILABLE'}],confirmText:'Add Key Tag'});if(!r)return;const tag=r[0].trim(),address=r[1].trim();if(!tag){await tfAlert('Key Tag Required','Enter a Key Tag number.');return}if(keys.some(k=>String(k.tag)===tag)){await tfAlert('Key Tag Already Exists',`Tag #${escapeHTML(tag)} is already in inventory.`);return}const k={id:'k'+Date.now(),tag,address,keyOut:null,keyMissing:false,lb:null,lbMissing:false,history:[],notes:''};keys.push(k);const ok=await saveKeyRowDirect(k,{refresh:false});if(!ok){keys=keys.filter(x=>x!==k);renderKeys();return}if(k.address){try{await recordKeyPropertyHistory(k,{oldAddress:'',newAddress:k.address})}catch(e){console.error(e)}}renderKeys();setTimeout(()=>refreshSharedKeys(false),100)}
+async function addKeyTag(){const fields=[{label:'Key Tag Number',placeholder:'e.g. 25'},{label:'Property Address',placeholder:'Optional — leave blank for AVAILABLE'}];if(isAllLocations())fields.push({label:'Location',type:'select',options:turnflowLocations.map(l=>({value:l.id,label:l.name}))});const r=await turnFlowDialog({title:'Add Key Tag',message:'Property is optional. Leave it blank to add this tag as AVAILABLE.',fields,confirmText:'Add Key Tag'});if(!r)return;const tag=r[0].trim(),address=r[1].trim();const chosenLocation=isAllLocations()?r[2]:currentLocationId;if(!chosenLocation){await tfAlert('Location Required','Choose a location for this Key Tag.');return}if(!tag){await tfAlert('Key Tag Required','Enter a Key Tag number.');return}if(keys.some(k=>String(k.tag)===tag)){await tfAlert('Key Tag Already Exists',`Tag #${escapeHTML(tag)} is already in inventory.`);return}writeLocationOverride=chosenLocation;const k={id:'k'+Date.now(),tag,address,locationId:chosenLocation,keyOut:null,keyMissing:false,lb:null,lbMissing:false,history:[],notes:''};keys.push(k);const ok=await saveKeyRowDirect(k,{refresh:false});if(!ok){keys=keys.filter(x=>x!==k);writeLocationOverride=null;renderKeys();return}if(k.address){try{await recordKeyPropertyHistory(k,{oldAddress:'',newAddress:k.address})}catch(e){console.error(e)}}writeLocationOverride=null;renderKeys();setTimeout(()=>refreshSharedKeys(false),100)}
 // Search is controlled from the fixed SEARCH dropdown.
 saveKeys();
 render();
@@ -557,7 +566,7 @@ function renderSettings(){
   const used=usedLBs();
   const inventoryRows=lbInventory.slice().sort((a,b)=>+a-+b).map(n=>{const owner=keys.find(k=>k.lb&&String(k.lb.number)===String(n));return `<div class="configure-lb-row"><strong>LB #${escapeHTML(n)}</strong><span class="${owner?'lb-out-status':'lb-available-status'}">${owner?'OUT · '+escapeHTML(owner.address):'AVAILABLE'}</span><button class="remove-lb action-secondary" data-lb="${escapeHTML(n)}" ${owner?'disabled title="Return this lockbox before removing it"':''}>Remove</button></div>`}).join('');
   rows.innerHTML=`<section class="settings-card"><div class="settings-card-head"><div><h2>Key & Lockbox Setup</h2><p>Manage the office lockbox pool and import key inventory.</p></div></div><details class="configure-section"><summary class="settings-item configure-summary"><div><h3>Lockbox Inventory <span class="configure-count">${lbInventory.length}</span></h3><p>Add or remove lockboxes available for assignment. Lockboxes currently checked out cannot be removed.</p></div><span class="configure-chevron" aria-hidden="true">⌄</span></summary><div class="configure-section-body"><div class="configure-section-actions"><button id="addConfigureLB" class="primary">+ Add Lockbox</button></div><div class="configure-lb-list">${inventoryRows||'<div class="empty configure-empty">No lockboxes in inventory.</div>'}</div></div></details><div class="settings-item import-key-item"><div><h3>Import Key Log</h3><p>Import key tags and property addresses from a CSV file. Existing tag numbers or property addresses are flagged before anything is added.</p></div><button id="importKeyLog" class="primary">Import Key Log</button><input id="keyLogFile" type="file" accept=".csv,text/csv" hidden></div><div id="importPreview"></div></section>`;
-  $('#addConfigureLB').onclick=()=>{const n=prompt('Lockbox number to add:');if(!n)return;const clean=n.trim().replace(/^#/,'');if(clean&&!lbInventory.includes(clean)){lbInventory.push(clean);saveKeys();renderSettings()}else if(lbInventory.includes(clean)){alert(`LB #${clean} is already in inventory.`)}};
+  $('#addConfigureLB').onclick=async()=>{const fields=[{label:'Lockbox Number',placeholder:'e.g. 51'}];if(isAllLocations())fields.push({label:'Location',type:'select',options:turnflowLocations.map(l=>({value:l.id,label:l.name}))});const r=await turnFlowDialog({title:'Add Lockbox',fields,confirmText:'Add Lockbox'});if(!r)return;const clean=String(r[0]||'').trim().replace(/^#/,'');const loc=isAllLocations()?r[1]:currentLocationId;if(!clean){await tfAlert('Lockbox Number Required','Enter a lockbox number.');return}if(!loc){await tfAlert('Location Required','Choose a location for this lockbox.');return}if(lbInventory.includes(clean)){await tfAlert('Lockbox Already Exists',`LB #${escapeHTML(clean)} is already in inventory.`);return}if(normalizedReady){const ins=await sb.from('lockboxes').insert({organization_id:cloudOrgId,location_id:loc,lockbox_number:clean,status:'available',created_by:cloudUser.id});if(ins.error){await tfAlert('Could Not Add Lockbox',escapeHTML(ins.error.message));return}await refreshSharedKeys(false);renderSettings()}else{lbInventory.push(clean);saveKeys();renderSettings()}};
   rows.querySelectorAll('.remove-lb').forEach(btn=>btn.onclick=()=>{if(btn.disabled)return;const n=btn.dataset.lb;if(!confirm(`Remove LB #${n} from inventory?`))return;lbInventory=lbInventory.filter(x=>String(x)!==String(n));saveKeys();renderSettings()});
   $('#importKeyLog').onclick=()=>$('#keyLogFile').click();
   $('#keyLogFile').onchange=e=>{const f=e.target.files?.[0];if(f)readKeyLogFile(f)};
@@ -601,7 +610,7 @@ async function commitKeyImport(){
       }).select('id').single();
       if(ins.error)throw ins.error;
       const tx=await sb.from('key_transactions').insert({
-        organization_id:cloudOrgId,key_tag_id:ins.data.id,property_id:propertyId,
+        organization_id:cloudOrgId,key_tag_id:ins.data.id,property_id:propertyId,location_id:propertyLocationById.get(propertyId)||requiredWriteLocation(),
         action:'location_change',action_date:TODAY,location:'office',
         notes:r.address?`Imported from Key Log · Property assigned: ${r.address}`:'Imported from Key Log · Available',
         performed_by:cloudUser.id
@@ -653,6 +662,43 @@ var normalizedProjectBaseline=new Map(),normalizedKeyBaseline=new Map(),normaliz
 var propertyIdByNorm=new Map(),normalizedFingerprint='';
 var dirtyKeyIds=new Set();
 var localEditGeneration=0;
+// v93 locations: regular staff operate inside their assigned office; owners/admins
+// may switch between a single location and the combined All Locations workspace.
+var turnflowLocations=[],userLocationIds=new Set(),currentLocationId=null,currentLocationMode='single',cloudOrgRole='member';
+var propertyLocationById=new Map(),propertyLocationByNorm=new Map(),lbLocationByNumber=new Map(),writeLocationOverride=null;
+function locationName(id){return turnflowLocations.find(l=>String(l.id)===String(id))?.name||''}
+function isAllLocations(){return currentLocationMode==='all'}
+function canUseAllLocations(){return ['owner','admin'].includes(cloudOrgRole)}
+function scoped(query){return (!isAllLocations()&&currentLocationId)?query.eq('location_id',currentLocationId):query}
+function requiredWriteLocation(){if(writeLocationOverride)return writeLocationOverride;if(currentLocationId)return currentLocationId;throw new Error('Choose a location before creating this record.')}
+function recordLocationBadge(id){return isAllLocations()&&id?`<span class="location-badge">${escapeHTML(locationName(id))}</span>`:''}
+async function loadLocationContext(orgId,role){
+  cloudOrgRole=role||'member';
+  const [locRes,userRes]=await Promise.all([
+    sb.from('locations').select('id,name,is_active').eq('organization_id',orgId).eq('is_active',true).order('name'),
+    sb.from('user_locations').select('location_id,access_level').eq('organization_id',orgId).eq('user_id',cloudUser.id)
+  ]);
+  if(locRes.error)throw locRes.error;if(userRes.error)throw userRes.error;
+  turnflowLocations=locRes.data||[];userLocationIds=new Set((userRes.data||[]).map(x=>String(x.location_id)));
+  const allowed=canUseAllLocations()?turnflowLocations:turnflowLocations.filter(l=>userLocationIds.has(String(l.id)));
+  if(!allowed.length)throw new Error('Your TurnFlow account is not assigned to a location.');
+  const saved=localStorage.getItem(`turnflowLocation:${orgId}:${cloudUser.id}`);
+  if(canUseAllLocations() && saved==='all'){currentLocationMode='all';currentLocationId=null}
+  else {const chosen=allowed.find(l=>String(l.id)===String(saved))||allowed[0];currentLocationMode='single';currentLocationId=chosen.id}
+  renderLocationSelector();
+}
+function renderLocationSelector(){
+  const host=document.querySelector('#locationSwitcher');if(!host)return;
+  const allowed=canUseAllLocations()?turnflowLocations:turnflowLocations.filter(l=>userLocationIds.has(String(l.id)));
+  if(allowed.length<=1&&!canUseAllLocations()){host.innerHTML='';host.classList.add('hidden');return}
+  host.classList.remove('hidden');
+  host.innerHTML=`<select id="locationSelect" aria-label="Location">${canUseAllLocations()?`<option value="all" ${isAllLocations()?'selected':''}>All Locations</option>`:''}${allowed.map(l=>`<option value="${l.id}" ${String(currentLocationId)===String(l.id)?'selected':''}>${escapeHTML(l.name)}</option>`).join('')}</select>`;
+  host.querySelector('select').onchange=async e=>{const v=e.target.value;if(v==='all'){currentLocationMode='all';currentLocationId=null}else{currentLocationMode='single';currentLocationId=v}localStorage.setItem(`turnflowLocation:${cloudOrgId}:${cloudUser.id}`,v);openId=null;keyOpenId=null;setSearchValue('');await refreshForLocation();};
+}
+async function refreshForLocation(){
+  if(!normalizedReady)return;
+  const rowsData=await fetchNormalized();applyNormalized(rowsData,{renderUI:false});render();
+}
 
 const TURNFLOW_CLIENT_ID=(crypto.randomUUID?crypto.randomUUID():String(Date.now())+'-'+Math.random());
 
@@ -664,7 +710,7 @@ const TURNFLOW_CLIENT_ID=(crypto.randomUUID?crypto.randomUUID():String(Date.now(
 
 function stableProjectShape(x){
   return {
-    id:String(x.id),address:x.address||'',type:x.type||'turn',
+    id:String(x.id),address:x.address||'',type:x.type||'turn',locationId:x.locationId||'',
     archived:!!x.archived,archivedAt:x.archivedAt||'',
     completed:!!x.completed,keepVisible:x.keepVisible!==false,
     notes:x.notes||'',price:x.price||'',securityDeposit:x.securityDeposit||'',
@@ -676,7 +722,7 @@ function stableProjectShape(x){
 }
 function stableKeyShape(k){
   return {
-    id:String(k.id),tag:String(k.tag||''),address:k.address||'',
+    id:String(k.id),tag:String(k.tag||''),address:k.address||'',locationId:k.locationId||'',
     keyOut:k.keyOut||null,keyMissing:!!k.keyMissing,
     lb:k.lb?{number:String(k.lb.number),outDate:k.lb.outDate||''}:null,
     lbMissing:!!k.lbMissing,notes:k.notes||'',
@@ -701,13 +747,13 @@ async function ensureProperty(address){
   const norm=normalizeAddress(address);
   if(propertyIdByNorm.has(norm))return propertyIdByNorm.get(norm);
   let {data:row,error}=await sb.from('properties')
-    .select('id,address,normalized_address')
+    .select('id,address,normalized_address,location_id')
     .eq('organization_id',cloudOrgId).eq('normalized_address',norm).maybeSingle();
   if(error)throw error;
   if(!row){
     const res=await sb.from('properties').insert({
-      organization_id:cloudOrgId,address,normalized_address:norm,created_by:cloudUser.id
-    }).select('id,address,normalized_address').single();
+      organization_id:cloudOrgId,address,normalized_address:norm,location_id:requiredWriteLocation(),created_by:cloudUser.id
+    }).select('id,address,normalized_address,location_id').single();
     if(res.error)throw res.error;
     row=res.data;
   }
@@ -723,7 +769,7 @@ function projectToRow(x,propertyId){
     linkedListingId:x.linkedListingId?String(x.linkedListingId):''
   };
   return {
-    organization_id:cloudOrgId,property_id:propertyId,project_type:x.type,
+    organization_id:cloudOrgId,property_id:propertyId,location_id:x.locationId||propertyLocationById.get(propertyId)||requiredWriteLocation(),project_type:x.type,
     state:x.archived?'archived':(x.completed?'completed':'active'),
     completed:!!x.completed,keep_visible:x.keepVisible!==false,
     archived_at:x.archived?(x.archivedAt?`${x.archivedAt}T12:00:00Z`:new Date().toISOString()):null,
@@ -734,7 +780,7 @@ function projectToRow(x,propertyId){
 function rowToProject(r,propertyAddress){
   const w=r.workflow_data||{};
   return {
-    id:r.id,address:propertyAddress,type:r.project_type,
+    id:r.id,address:propertyAddress,type:r.project_type,locationId:r.location_id||'',
     archived:r.state==='archived',archivedAt:r.archived_at?String(r.archived_at).slice(0,10):'',
     completed:!!r.completed,keepVisible:r.keep_visible!==false,
     notes:r.notes||'',price:w.price||'',securityDeposit:w.securityDeposit||'',
@@ -753,12 +799,12 @@ function txToHistory(t,isLB=false){
 }
 async function fetchNormalized(){
   const [prjRes,propRes,keyRes,lbRes,ktRes,lbtRes]=await Promise.all([
-    sb.from('projects').select('*').eq('organization_id',cloudOrgId),
-    sb.from('properties').select('*').eq('organization_id',cloudOrgId),
-    sb.from('key_tags').select('*').eq('organization_id',cloudOrgId),
-    sb.from('lockboxes').select('*').eq('organization_id',cloudOrgId),
-    sb.from('key_transactions').select('*').eq('organization_id',cloudOrgId).order('created_at',{ascending:false}),
-    sb.from('lockbox_transactions').select('*').eq('organization_id',cloudOrgId).order('created_at',{ascending:false})
+    scoped(sb.from('projects').select('*').eq('organization_id',cloudOrgId)),
+    scoped(sb.from('properties').select('*').eq('organization_id',cloudOrgId)),
+    scoped(sb.from('key_tags').select('*').eq('organization_id',cloudOrgId)),
+    scoped(sb.from('lockboxes').select('*').eq('organization_id',cloudOrgId)),
+    scoped(sb.from('key_transactions').select('*').eq('organization_id',cloudOrgId)).order('created_at',{ascending:false}),
+    scoped(sb.from('lockbox_transactions').select('*').eq('organization_id',cloudOrgId)).order('created_at',{ascending:false})
   ]);
   for(const r of [prjRes,propRes,keyRes,lbRes,ktRes,lbtRes])if(r.error)throw r.error;
   return {projects:prjRes.data||[],properties:propRes.data||[],keyTags:keyRes.data||[],lockboxes:lbRes.data||[],keyTx:ktRes.data||[],lbTx:lbtRes.data||[]};
@@ -768,6 +814,8 @@ function applyNormalized(rowsData,{renderUI=true}={}){
   const preservedKey=document.querySelector('#rows .key-row.open')?.dataset.kid ?? keyOpenId;
   const propMap=new Map((rowsData.properties||[]).map(p=>[p.id,p]));
   propertyIdByNorm=new Map((rowsData.properties||[]).map(p=>[p.normalized_address,p.id]));
+  propertyLocationById=new Map((rowsData.properties||[]).map(p=>[p.id,p.location_id]));
+  propertyLocationByNorm=new Map((rowsData.properties||[]).map(p=>[p.normalized_address,p.location_id]));
 
   data=(rowsData.projects||[]).map(r=>rowToProject(r,propMap.get(r.property_id)?.address||'Unknown Property'));
 
@@ -818,7 +866,7 @@ async function migrateWorkspaceSnapshotToNormalized(snapshot){
   // Lockbox inventory.
   for(const n of oldLBs.map(String)){
     const {error}=await sb.from('lockboxes').insert({
-      organization_id:cloudOrgId,lockbox_number:n,status:'available',created_by:cloudUser.id
+      organization_id:cloudOrgId,location_id:requiredWriteLocation(),lockbox_number:n,status:'available',created_by:cloudUser.id
     });
     if(error && error.code!=='23505')throw error;
   }
@@ -828,7 +876,7 @@ async function migrateWorkspaceSnapshotToNormalized(snapshot){
     const propertyId=await ensureProperty(k.address);
     const location=k.keyMissing?'missing':(k.keyOut?'checked_out':'office');
     const {data:keyRow,error}=await sb.from('key_tags').insert({
-      organization_id:cloudOrgId,property_id:propertyId,tag_number:String(k.tag),
+      organization_id:cloudOrgId,property_id:propertyId,location_id:k.locationId||propertyLocationById.get(propertyId)||requiredWriteLocation(),tag_number:String(k.tag),
       current_location:location,checked_out_to:k.keyOut?.to||null,checked_out_at:k.keyOut?.date||null,
       notes:k.notes||'',created_by:cloudUser.id
     }).select('id').single();
@@ -915,13 +963,13 @@ async function syncNormalizedChanges(){
 
     // Lockbox writes use the immutable snapshot captured with this save.
     const desired=new Set(lbCopies);
-    const {data:dbLBs,error:lbErr}=await sb.from('lockboxes').select('*').eq('organization_id',cloudOrgId);
+    const {data:dbLBs,error:lbErr}=await scoped(sb.from('lockboxes').select('*').eq('organization_id',cloudOrgId));
     if(lbErr)throw lbErr;
     const byNumber=new Map((dbLBs||[]).map(l=>[String(l.lockbox_number),l]));
     for(const n of desired){
       if(!byNumber.has(n)){
         const ins=await sb.from('lockboxes').insert({
-          organization_id:cloudOrgId,lockbox_number:n,status:'available',created_by:cloudUser.id
+          organization_id:cloudOrgId,location_id:requiredWriteLocation(),lockbox_number:n,status:'available',created_by:cloudUser.id
         });if(ins.error)throw ins.error;
       }
     }
@@ -973,8 +1021,8 @@ async function syncNormalizedChanges(){
 
 async function fetchSharedProjects(){
   const [prjRes,propRes]=await Promise.all([
-    sb.from('projects').select('*').eq('organization_id',cloudOrgId),
-    sb.from('properties').select('*').eq('organization_id',cloudOrgId)
+    scoped(sb.from('projects').select('*').eq('organization_id',cloudOrgId)),
+    scoped(sb.from('properties').select('*').eq('organization_id',cloudOrgId))
   ]);
   if(prjRes.error)throw prjRes.error;
   if(propRes.error)throw propRes.error;
@@ -984,6 +1032,8 @@ function applySharedProjects(rowsData,{renderUI=true}={}){
   const preservedProject=document.querySelector('#rows .row.open')?.dataset.id ?? openId;
   const propMap=new Map((rowsData.properties||[]).map(p=>[p.id,p]));
   propertyIdByNorm=new Map((rowsData.properties||[]).map(p=>[p.normalized_address,p.id]));
+  propertyLocationById=new Map((rowsData.properties||[]).map(p=>[p.id,p.location_id]));
+  propertyLocationByNorm=new Map((rowsData.properties||[]).map(p=>[p.normalized_address,p.location_id]));
   data=(rowsData.projects||[]).map(r=>rowToProject(r,propMap.get(r.property_id)?.address||'Unknown Property'));
   localStorage.setItem('whiteboardData',JSON.stringify(data));
   openId=(preservedProject!=null && data.some(x=>String(x.id)===String(preservedProject)))?preservedProject:null;
@@ -1055,11 +1105,11 @@ async function reconcileMissingKeysFromRecovery(snapshot,rowsData){
 
 async function fetchSharedKeys(){
   const [propRes,keyRes,lbRes,ktRes,lbtRes]=await Promise.all([
-    sb.from('properties').select('*').eq('organization_id',cloudOrgId),
-    sb.from('key_tags').select('*').eq('organization_id',cloudOrgId),
-    sb.from('lockboxes').select('*').eq('organization_id',cloudOrgId),
-    sb.from('key_transactions').select('*').eq('organization_id',cloudOrgId).order('created_at',{ascending:false}),
-    sb.from('lockbox_transactions').select('*').eq('organization_id',cloudOrgId).order('created_at',{ascending:false})
+    scoped(sb.from('properties').select('*').eq('organization_id',cloudOrgId)),
+    scoped(sb.from('key_tags').select('*').eq('organization_id',cloudOrgId)),
+    scoped(sb.from('lockboxes').select('*').eq('organization_id',cloudOrgId)),
+    scoped(sb.from('key_transactions').select('*').eq('organization_id',cloudOrgId)).order('created_at',{ascending:false}),
+    scoped(sb.from('lockbox_transactions').select('*').eq('organization_id',cloudOrgId)).order('created_at',{ascending:false})
   ]);
   for(const r of [propRes,keyRes,lbRes,ktRes,lbtRes])if(r.error)throw r.error;
   return {properties:propRes.data||[],keyTags:keyRes.data||[],lockboxes:lbRes.data||[],keyTx:ktRes.data||[],lbTx:lbtRes.data||[]};
@@ -1067,7 +1117,10 @@ async function fetchSharedKeys(){
 function mapSharedKeys(rowsData){
   const propMap=new Map((rowsData.properties||[]).map(p=>[p.id,p]));
   propertyIdByNorm=new Map((rowsData.properties||[]).map(p=>[p.normalized_address,p.id]));
+  propertyLocationById=new Map((rowsData.properties||[]).map(p=>[p.id,p.location_id]));
+  propertyLocationByNorm=new Map((rowsData.properties||[]).map(p=>[p.normalized_address,p.location_id]));
   const lbByProperty=new Map();
+  lbLocationByNumber=new Map((rowsData.lockboxes||[]).map(l=>[String(l.lockbox_number),l.location_id]));
   (rowsData.lockboxes||[]).filter(l=>l.property_id && ['assigned','missing'].includes(l.status))
     .forEach(l=>lbByProperty.set(l.property_id,l));
   const keyTxByTag=new Map();
@@ -1080,7 +1133,7 @@ function mapSharedKeys(rowsData){
     if(lb)hist.push(...(lbTxByBox.get(lb.id)||[]).map(t=>txToHistory(t,true)));
     hist.sort((a,b)=>String(b.date).localeCompare(String(a.date)));
     return {
-      id:k.id,tag:k.tag_number,address:prop?.address||'',notes:k.notes||'',
+      id:k.id,tag:k.tag_number,address:prop?.address||'',locationId:k.location_id||prop?.location_id||'',notes:k.notes||'',
       keyOut:k.current_location==='checked_out'?{date:k.checked_out_at||'',to:k.checked_out_to||''}:null,
       keyMissing:k.current_location==='missing',
       lb:lb?{number:lb.lockbox_number,outDate:lb.assigned_at||''}:null,
@@ -1294,8 +1347,9 @@ async function loadMembership(){
   if(error)throw error;
   return members||[];
 }
-async function connectWorkspace(orgId){
+async function connectWorkspace(orgId,orgRole='member'){
   cloudOrgId=orgId;
+  await loadLocationContext(orgId,orgRole);
   const {data:row,error}=await sb.from('workspace_state')
     .select('state,updated_at').eq('organization_id',orgId).maybeSingle();
   if(error)throw error;
@@ -1385,7 +1439,7 @@ async function afterAuth(user){
   try{
     const memberships=await loadMembership();
     if(memberships.length){
-      await connectWorkspace(memberships[0].organization_id);
+      await connectWorkspace(memberships[0].organization_id,memberships[0].role);
     }else{
       document.querySelector('#authLoginPane').classList.add('hidden');
       document.querySelector('#workspacePane').classList.remove('hidden');

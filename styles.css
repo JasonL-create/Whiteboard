@@ -552,3 +552,11 @@ body.auth-booting #appShell{visibility:hidden}
 .action-delete{background:#fff;border:1px solid #d7a2a2;color:#a62d2d;border-radius:8px;padding:10px 14px;font-weight:700;cursor:pointer;margin-left:auto}
 .action-delete:hover{background:#fff5f5;border-color:#c97777}
 @media(max-width:850px){.more-nav{margin-left:auto}.more-nav-btn{min-width:76px}.more-menu{right:0 !important;left:auto !important}}
+
+/* v93 location-aware workspace */
+.location-switcher{margin-left:18px;margin-right:14px}
+.location-switcher.hidden{display:none}
+.location-switcher select{appearance:auto;border:1px solid #cfd7df;background:#fff;border-radius:8px;padding:8px 30px 8px 11px;font:600 13px/1.2 inherit;color:#334155;min-width:132px}
+.location-badge{display:inline-flex;margin-left:9px;padding:2px 7px;border:1px solid #d8e0e8;border-radius:999px;background:#f5f7fa;color:#657386;font-size:10px;font-weight:700;letter-spacing:.04em;vertical-align:middle;text-transform:uppercase}
+.project-location-field{margin:2px 0 16px}.project-location-field.hidden{display:none}.project-location-field label{display:block;margin-bottom:6px;font-size:12px;font-weight:700;color:#5b6777}.project-location-field select{width:100%;border:1px solid #cfd7df;border-radius:8px;padding:11px 12px;background:#fff;font:inherit;color:#243244}
+@media(max-width:850px){.location-switcher{margin-left:auto;margin-right:10px}.location-switcher select{min-width:112px;max-width:145px}.company-name+.location-switcher{margin-left:auto}}

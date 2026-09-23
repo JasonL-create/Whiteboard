@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>TurnFlow</title>
-<link rel="stylesheet" href="styles.css?v=92" />
+<link rel="stylesheet" href="styles.css?v=93" />
 </head>
 <body class="auth-booting">
 
@@ -36,7 +36,7 @@
 
 <div class="app-shell" id="appShell">
 <div class="fixed-shell">
-<header class="brand-row"><div class="brand"><img src="turnflow-logo.png?v=51" alt="TurnFlow"></div><div class="company-name">Northwoods Property Management</div><button class="user-chip" id="userChip" type="button" title="Account">--</button></header>
+<header class="brand-row"><div class="brand"><img src="turnflow-logo.png?v=51" alt="TurnFlow"></div><div class="company-name">Northwoods Property Management</div><div id="locationSwitcher" class="location-switcher hidden"></div><button class="user-chip" id="userChip" type="button" title="Account">--</button></header>
 <nav class="master-nav" id="masterNav"></nav>
 </div>
 <main class="workspace">
@@ -53,7 +53,7 @@
   <div class="modal-head"><div><h2>Start New Project</h2></div><button id="closeModal" class="icon-btn">×</button></div>
   <form id="newForm">
    <div class="address-field"><div class="address-input-wrap"><span class="address-search-icon" aria-hidden="true"></span><input id="newAddress" required autocomplete="off" placeholder="Add Property Address" aria-label="Property Address"></div><div id="addressSuggestions" class="address-suggestions hidden"></div><div id="addressMatchNote" class="address-match-note hidden"></div></div>
-   <div class="project-type-label">Project Type</div><div class="project-type-buttons">
+   <div id="newLocationWrap" class="project-location-field hidden"><label for="newLocation">Location</label><select id="newLocation"><option value="">Choose location…</option></select></div><div class="project-type-label">Project Type</div><div class="project-type-buttons">
     <button type="button" class="project-type-choice selected" data-project-type="turn">TURN</button>
     <button type="button" class="project-type-choice" data-project-type="listing">LISTING</button>
    </div>
@@ -63,5 +63,5 @@
  </div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="app.js?v=92"></script>
+<script src="app.js?v=93"></script>
 </body></html>
