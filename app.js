@@ -88,7 +88,7 @@ async function tfAlert(title,message){await turnFlowDialog({title,message,showCa
 function renderShell(){
  const {active,c,arch}=counts(), turns=active.filter(x=>x.type==='turn').length, listings=active.filter(x=>x.type==='listing').length;
  const q=searchValue().replace(/"/g,'&quot;');
- $('#masterNav').innerHTML=`<div class="master-left"><button id="projectsNav" class="nav-btn ${view==='board'&&filter!=='archived'?'selected':''}"><img class="nav-icon-img" src="icon-projects.png" alt="">PROJECTS</button><button id="keysNav" class="nav-btn ${view==='keys'?'selected':''}"><img class="nav-icon-img" src="icon-keys.png" alt="">KEYS</button><div class="more-nav nav-dropdown"><button id="moreNav" class="nav-btn more-nav-btn ${((view==='board'&&filter==='archived')||view==='reports'||view==='settings')?'selected':''}">MORE <span class="more-caret">⌄</span></button><div class="dropdown-panel more-menu"><button id="archiveNav" class="${view==='board'&&filter==='archived'?'current':''}">Archive</button><button id="reportsNav" class="${view==='reports'?'current':''}">Reports</button><button id="settingsNav" class="${view==='settings'?'current':''}">Configure</button></div></div></div>`;
+ $('#masterNav').innerHTML=`<div class="master-left"><button id="projectsNav" class="nav-btn ${view==='board'&&filter!=='archived'?'selected':''}"><img class="nav-icon-img" src="icon-projects.png" alt="">PROJECTS</button><button id="keysNav" class="nav-btn ${view==='keys'?'selected':''}"><img class="nav-icon-img" src="icon-keys.png" alt="">KEYS</button><div class="more-nav nav-dropdown"><button id="moreNav" class="nav-btn more-nav-btn ${((view==='board'&&filter==='archived')||view==='reports'||view==='settings')?'selected':''}">MORE ${pendingAccessCount?`<span class="pending-nav-badge">${pendingAccessCount}</span>`:''} <span class="more-caret">⌄</span></button><div class="dropdown-panel more-menu"><button id="archiveNav" class="${view==='board'&&filter==='archived'?'current':''}">Archive</button><button id="reportsNav" class="${view==='reports'?'current':''}">Reports</button><button id="settingsNav" class="${view==='settings'?'current':''}">Configure</button></div></div></div>`;
  const heroSearch=`<div class="hero-search"><div class="search-wrap"><input id="shellSearch" class="shell-search" type="search" placeholder="Search" value="${q}"></div></div>`;
 
  const hero=$('#pageHero');
@@ -565,11 +565,22 @@ function renderSettings(){
   $('#contextNav').innerHTML='';
   const used=usedLBs();
   const inventoryRows=lbInventory.slice().sort((a,b)=>+a-+b).map(n=>{const owner=keys.find(k=>k.lb&&String(k.lb.number)===String(n));return `<div class="configure-lb-row"><strong>LB #${escapeHTML(n)}</strong><span class="${owner?'lb-out-status':'lb-available-status'}">${owner?'OUT · '+escapeHTML(owner.address):'AVAILABLE'}</span><button class="remove-lb action-secondary" data-lb="${escapeHTML(n)}" ${owner?'disabled title="Return this lockbox before removing it"':''}>Remove</button></div>`}).join('');
-  rows.innerHTML=`<section class="settings-card"><div class="settings-card-head"><div><h2>Key & Lockbox Setup</h2><p>Manage the office lockbox pool and import key inventory.</p></div></div><details class="configure-section"><summary class="settings-item configure-summary"><div><h3>Lockbox Inventory <span class="configure-count">${lbInventory.length}</span></h3><p>Add or remove lockboxes available for assignment. Lockboxes currently checked out cannot be removed.</p></div><span class="configure-chevron" aria-hidden="true">⌄</span></summary><div class="configure-section-body"><div class="configure-section-actions"><button id="addConfigureLB" class="primary">+ Add Lockbox</button></div><div class="configure-lb-list">${inventoryRows||'<div class="empty configure-empty">No lockboxes in inventory.</div>'}</div></div></details><div class="settings-item import-key-item"><div><h3>Import Key Log</h3><p>Import key tags and property addresses from a CSV file. Existing tag numbers or property addresses are flagged before anything is added.</p></div><button id="importKeyLog" class="primary">Import Key Log</button><input id="keyLogFile" type="file" accept=".csv,text/csv" hidden></div><div id="importPreview"></div></section>`;
+  rows.innerHTML=`<section class="settings-card"><div class="settings-card-head"><div><h2>Key & Lockbox Setup</h2><p>Manage the office lockbox pool and import key inventory.</p></div></div><details class="configure-section"><summary class="settings-item configure-summary"><div><h3>Lockbox Inventory <span class="configure-count">${lbInventory.length}</span></h3><p>Add or remove lockboxes available for assignment. Lockboxes currently checked out cannot be removed.</p></div><span class="configure-chevron" aria-hidden="true">⌄</span></summary><div class="configure-section-body"><div class="configure-section-actions"><button id="addConfigureLB" class="primary">+ Add Lockbox</button></div><div class="configure-lb-list">${inventoryRows||'<div class="empty configure-empty">No lockboxes in inventory.</div>'}</div></div></details><div class="settings-item import-key-item"><div><h3>Import Key Log</h3><p>Import key tags and property addresses from a CSV file. Existing tag numbers or property addresses are flagged before anything is added.</p></div><button id="importKeyLog" class="primary">Import Key Log</button><input id="keyLogFile" type="file" accept=".csv,text/csv" hidden></div><div id="importPreview"></div></section>${['owner','admin'].includes(cloudOrgRole)?`<section class="settings-card user-access-card"><div class="settings-card-head"><div><h2>Users & Access <span id="pendingUserCount" class="configure-count"></span></h2><p>Approve new users and control their location and role.</p></div></div><div id="userAccessList" class="user-access-list"><div class="empty configure-empty">Loading users…</div></div></section>`:''}`;
   $('#addConfigureLB').onclick=async()=>{const fields=[{label:'Lockbox Number',placeholder:'e.g. 51'}];if(isAllLocations())fields.push({label:'Location',type:'select',options:turnflowLocations.map(l=>({value:l.id,label:l.name}))});const r=await turnFlowDialog({title:'Add Lockbox',fields,confirmText:'Add Lockbox'});if(!r)return;const clean=String(r[0]||'').trim().replace(/^#/,'');const loc=isAllLocations()?r[1]:currentLocationId;if(!clean){await tfAlert('Lockbox Number Required','Enter a lockbox number.');return}if(!loc){await tfAlert('Location Required','Choose a location for this lockbox.');return}if(lbInventory.includes(clean)){await tfAlert('Lockbox Already Exists',`LB #${escapeHTML(clean)} is already in inventory.`);return}if(normalizedReady){const ins=await sb.from('lockboxes').insert({organization_id:cloudOrgId,location_id:loc,lockbox_number:clean,status:'available',created_by:cloudUser.id});if(ins.error){await tfAlert('Could Not Add Lockbox',escapeHTML(ins.error.message));return}await refreshSharedKeys(false);renderSettings()}else{lbInventory.push(clean);saveKeys();renderSettings()}};
   rows.querySelectorAll('.remove-lb').forEach(btn=>btn.onclick=async()=>{if(btn.disabled)return;const n=btn.dataset.lb;const ok=await turnFlowDialog({title:'Remove Lockbox?',message:`Remove <strong>LB #${escapeHTML(n)}</strong> from inventory?`,confirmText:'Remove Lockbox',cancelText:'Cancel'});if(!ok)return;lbInventory=lbInventory.filter(x=>String(x)!==String(n));saveKeys();renderSettings()});
   $('#importKeyLog').onclick=()=>$('#keyLogFile').click();
   $('#keyLogFile').onchange=e=>{const f=e.target.files?.[0];if(f)readKeyLogFile(f)};
+  if(['owner','admin'].includes(cloudOrgRole))loadUserAccessAdmin();
+}
+async function loadUserAccessAdmin(){
+ const host=$('#userAccessList');if(!host||!cloudOrgId)return;
+ const {data,error}=await sb.rpc('list_turnflow_users',{p_organization_id:cloudOrgId});
+ if(error){host.innerHTML=`<div class="import-warning">${escapeHTML(error.message)}</div>`;return}
+ const grouped=new Map();(data||[]).forEach(r=>{const id=String(r.user_id);if(!grouped.has(id))grouped.set(id,{...r,locations:[]});if(r.location_id)grouped.get(id).locations.push(r)});
+ const users=[...grouped.values()],pending=users.filter(u=>!u.locations.length).length;const badge=$('#pendingUserCount');if(badge){badge.textContent=pending?pending:'';badge.style.display=pending?'inline-grid':'none'}
+ host.innerHTML=users.map(u=>{const a=u.locations[0];const level=a?.access_level||'';const loc=a?.location_id||'';const isSelf=String(u.user_id)===String(cloudUser.id);return `<div class="user-access-row ${!a?'pending-user':''}"><div class="user-access-person"><strong>${escapeHTML(u.display_name||u.email)}</strong><span>${escapeHTML(u.email)}</span>${!a?'<em>Pending access</em>':''}</div><select class="user-location-select" data-user="${u.user_id}"><option value="">Choose location…</option>${turnflowLocations.map(l=>`<option value="${l.id}" ${String(loc)===String(l.id)?'selected':''}>${escapeHTML(l.name)}</option>`).join('')}</select><select class="user-role-select" data-user="${u.user_id}"><option value="staff" ${level==='staff'?'selected':''}>Staff</option><option value="management" ${level==='management'?'selected':''}>Management</option><option value="admin" ${level==='admin'?'selected':''}>Admin</option></select><div class="user-access-actions"><button class="primary save-user-access" data-user="${u.user_id}">${a?'Save':'Approve Access'}</button>${a&&!isSelf?`<button class="action-secondary revoke-user-access" data-user="${u.user_id}">Revoke</button>`:''}</div></div>`}).join('')||'<div class="empty configure-empty">No users found.</div>';
+ host.querySelectorAll('.save-user-access').forEach(b=>b.onclick=async()=>{const id=b.dataset.user,loc=host.querySelector(`.user-location-select[data-user="${id}"]`)?.value,level=host.querySelector(`.user-role-select[data-user="${id}"]`)?.value;if(!loc){await tfAlert('Location Required','Choose a location before approving access.');return}b.disabled=true;const {error}=await sb.rpc('set_turnflow_user_access',{p_organization_id:cloudOrgId,p_user_id:id,p_location_id:loc,p_access_level:level});b.disabled=false;if(error){await tfAlert('Could Not Save Access',escapeHTML(error.message));return}syncToast('User access saved');await refreshAdminPendingCount();renderShell();await loadUserAccessAdmin()});
+ host.querySelectorAll('.revoke-user-access').forEach(b=>b.onclick=async()=>{const id=b.dataset.user;const ok=await turnFlowDialog({title:'Revoke Access?',message:'This user will remain signed up but will no longer be able to see TurnFlow operational data.',confirmText:'Revoke Access',cancelText:'Cancel'});if(!ok)return;const {error}=await sb.rpc('revoke_turnflow_user_access',{p_organization_id:cloudOrgId,p_user_id:id});if(error){await tfAlert('Could Not Revoke Access',escapeHTML(error.message));return}syncToast('User access revoked');await refreshAdminPendingCount();renderShell();await loadUserAccessAdmin()});
 }
 function csvRows(text){
  const rows=[];let row=[],cell='',quoted=false;
@@ -605,7 +616,7 @@ async function commitKeyImport(){
     try{
       const propertyId=r.address?await ensureProperty(r.address):null;
       const ins=await sb.from('key_tags').insert({
-        organization_id:cloudOrgId,property_id:propertyId,tag_number:String(r.tag),
+        organization_id:cloudOrgId,location_id:propertyLocationById.get(propertyId)||requiredWriteLocation(),property_id:propertyId,tag_number:String(r.tag),
         current_location:'office',checked_out_to:null,checked_out_at:null,notes:'',created_by:cloudUser.id
       }).select('id').single();
       if(ins.error)throw ins.error;
@@ -664,11 +675,11 @@ var dirtyKeyIds=new Set();
 var localEditGeneration=0;
 // v93 locations: regular staff operate inside their assigned office; owners/admins
 // may switch between a single location and the combined All Locations workspace.
-var turnflowLocations=[],userLocationIds=new Set(),currentLocationId=null,currentLocationMode='single',cloudOrgRole='member';
+var turnflowLocations=[],userLocationIds=new Set(),currentLocationId=null,currentLocationMode='single',cloudOrgRole='member',cloudAccessLevel='staff',pendingAccessCount=0,pendingAccessPollTimer=null;
 var propertyLocationById=new Map(),propertyLocationByNorm=new Map(),lbLocationByNumber=new Map(),writeLocationOverride=null;
 function locationName(id){return turnflowLocations.find(l=>String(l.id)===String(id))?.name||''}
 function isAllLocations(){return currentLocationMode==='all'}
-function canUseAllLocations(){return ['owner','admin'].includes(cloudOrgRole)}
+function canUseAllLocations(){return ['owner','admin'].includes(cloudOrgRole)||['management','admin'].includes(cloudAccessLevel)}
 function scoped(query){return (!isAllLocations()&&currentLocationId)?query.eq('location_id',currentLocationId):query}
 function requiredWriteLocation(){if(writeLocationOverride)return writeLocationOverride;if(currentLocationId)return currentLocationId;throw new Error('Choose a location before creating this record.')}
 function recordLocationBadge(id){return isAllLocations()&&id?`<span class="location-badge">${escapeHTML(locationName(id))}</span>`:''}
@@ -680,12 +691,17 @@ async function loadLocationContext(orgId,role){
   ]);
   if(locRes.error)throw locRes.error;if(userRes.error)throw userRes.error;
   turnflowLocations=locRes.data||[];userLocationIds=new Set((userRes.data||[]).map(x=>String(x.location_id)));
+  const levels=(userRes.data||[]).map(x=>x.access_level);cloudAccessLevel=levels.includes('admin')?'admin':levels.includes('management')?'management':'staff';
   const allowed=canUseAllLocations()?turnflowLocations:turnflowLocations.filter(l=>userLocationIds.has(String(l.id)));
-  if(!allowed.length)throw new Error('Your TurnFlow account is not assigned to a location.');
+  if(!allowed.length){const e=new Error('PENDING_ACCESS');e.code='PENDING_ACCESS';throw e;}
   const saved=localStorage.getItem(`turnflowLocation:${orgId}:${cloudUser.id}`);
   if(canUseAllLocations() && saved==='all'){currentLocationMode='all';currentLocationId=null}
   else {const chosen=allowed.find(l=>String(l.id)===String(saved))||allowed[0];currentLocationMode='single';currentLocationId=chosen.id}
   renderLocationSelector();
+}
+async function refreshAdminPendingCount(){
+ if(!cloudOrgId||!['owner','admin'].includes(cloudOrgRole)){pendingAccessCount=0;return}
+ const {data,error}=await sb.rpc('list_turnflow_users',{p_organization_id:cloudOrgId});if(error)return;const assigned=new Set((data||[]).filter(x=>x.location_id).map(x=>String(x.user_id)));pendingAccessCount=[...new Set((data||[]).map(x=>String(x.user_id)))].filter(id=>!assigned.has(id)).length;
 }
 function renderLocationSelector(){
   const host=document.querySelector('#locationSwitcher');if(!host)return;
@@ -1425,6 +1441,10 @@ async function connectWorkspace(orgId,orgRole='member'){
 
   // v60: migrate once if needed, then use record-level Supabase tables.
   await startNormalizedMode(row?.state || cloudSnapshot(cloudServerVersion));
+  await refreshAdminPendingCount();
+  if(pendingAccessCount)render();
+  clearInterval(pendingAccessPollTimer);
+  if(['owner','admin'].includes(cloudOrgRole))pendingAccessPollTimer=setInterval(async()=>{const before=pendingAccessCount;await refreshAdminPendingCount();if(before!==pendingAccessCount)renderShell()},30000);
 
   // The legacy whole-workspace channel/poll is recovery-only after migration.
   if(cloudChannel){await sb.removeChannel(cloudChannel);cloudChannel=null}
@@ -1441,15 +1461,22 @@ async function afterAuth(user){
     if(memberships.length){
       await connectWorkspace(memberships[0].organization_id,memberships[0].role);
     }else{
+      const {data:req}=await sb.from('access_requests').select('id,status').eq('user_id',cloudUser.id).eq('status','pending').limit(1);
+      if(req?.length){showPendingAccess();return}
       document.querySelector('#authLoginPane').classList.add('hidden');
       document.querySelector('#workspacePane').classList.remove('hidden');
       document.querySelector('#authGate').classList.remove('hidden');
     }
   }catch(err){
+    if(err?.code==='PENDING_ACCESS'||err?.message==='PENDING_ACCESS'){showPendingAccess();return}
     authMsg(err.message||'Could not connect to TurnFlow.');
     document.querySelector('#authGate').classList.remove('hidden');
   }
 }
+function showPendingAccess(){
+ document.querySelector('#authLoginPane').classList.add('hidden');document.querySelector('#workspacePane').classList.add('hidden');document.querySelector('#resetPasswordPane').classList.add('hidden');document.querySelector('#pendingAccessPane').classList.remove('hidden');document.querySelector('#authGate').classList.remove('hidden');
+}
+function showLoginPane(){document.querySelector('#pendingAccessPane').classList.add('hidden');document.querySelector('#workspacePane').classList.add('hidden');document.querySelector('#resetPasswordPane').classList.add('hidden');document.querySelector('#authLoginPane').classList.remove('hidden');document.querySelector('#authGate').classList.remove('hidden')}
 async function bootSupabase(){
   try{
     const {data:{session}}=await sb.auth.getSession();
@@ -1459,15 +1486,22 @@ async function bootSupabase(){
     document.body.classList.remove('auth-booting');
   }
 
-  sb.auth.onAuthStateChange((_event,session)=>{
+  sb.auth.onAuthStateChange((event,session)=>{
+    if(event==='PASSWORD_RECOVERY'){document.querySelector('#authLoginPane').classList.add('hidden');document.querySelector('#workspacePane').classList.add('hidden');document.querySelector('#pendingAccessPane').classList.add('hidden');document.querySelector('#resetPasswordPane').classList.remove('hidden');document.querySelector('#authGate').classList.remove('hidden');return}
     if(!session?.user){
-      cloudReady=false;cloudOrgId=null;cloudUser=null;
+      cloudReady=false;cloudOrgId=null;cloudUser=null;clearInterval(pendingAccessPollTimer);pendingAccessPollTimer=null;
       document.querySelector('#authGate').classList.remove('hidden');
       document.querySelector('#authLoginPane').classList.remove('hidden');
       document.querySelector('#workspacePane').classList.add('hidden');
     }
   });
 }
+document.querySelector('#forgotPassword').onclick=async()=>{
+ const email=document.querySelector('#authEmail').value.trim()||String((await turnFlowDialog({title:'Reset Password',message:'Enter the email address used for TurnFlow.',fields:[{label:'Email',type:'email',placeholder:'name@example.com'}],confirmText:'Send Reset Link'}))?.[0]||'').trim();if(!email)return;
+ const redirectTo=location.origin+location.pathname;const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo});if(error){authMsg(error.message||'Could not send reset email.');return}authMsg('Password reset email sent. Check your inbox.',true);
+};
+document.querySelector('#resetPasswordForm').onsubmit=async e=>{e.preventDefault();const p=document.querySelector('#resetPassword').value,c=document.querySelector('#resetPasswordConfirm').value,m=document.querySelector('#resetPasswordMessage');m.textContent='';m.classList.remove('success');if(p!==c){m.textContent='Passwords do not match.';return}const btn=e.currentTarget.querySelector('button');btn.disabled=true;const {error}=await sb.auth.updateUser({password:p});btn.disabled=false;if(error){m.textContent=error.message;return}m.textContent='Password updated. Opening TurnFlow…';m.classList.add('success');const {data:{user}}=await sb.auth.getUser();if(user)await afterAuth(user)};
+document.querySelector('#pendingSignOut').onclick=async()=>{await sb.auth.signOut();location.reload()};
 document.querySelector('#toggleSignup').onclick=()=>{
   signupMode=!signupMode;
   document.querySelector('#toggleSignup').textContent=signupMode?'Already have an account? Sign in':'Create an account';
@@ -1510,8 +1544,10 @@ document.querySelector('#joinWorkspace').onclick=async()=>{
   try{
     const {data:orgId,error}=await sb.rpc('join_organization',{code});
     if(error)throw error;
-    await connectWorkspace(orgId);
-  }catch(err){workspaceMsg(err.message||'Could not join workspace.')}
+    const memberships=await loadMembership();
+    if(memberships.some(m=>String(m.organization_id)===String(orgId)))await connectWorkspace(orgId,memberships.find(m=>String(m.organization_id)===String(orgId))?.role||'member');
+    else showPendingAccess();
+  }catch(err){workspaceMsg(err.message||'Could not request workspace access.')}
 };
 document.querySelector('#userChip').onclick=async()=>{
   if(!cloudUser)return;

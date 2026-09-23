@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>TurnFlow</title>
-<link rel="stylesheet" href="styles.css?v=94" />
+<link rel="stylesheet" href="styles.css?v=95" />
 </head>
 <body class="auth-booting">
 
@@ -20,7 +20,23 @@
         <div id="authMessage" class="auth-message"></div>
         <button class="primary auth-primary" type="submit">Sign In</button>
       </form>
+      <button id="forgotPassword" class="auth-link" type="button">Forgot password?</button>
       <button id="toggleSignup" class="auth-link" type="button">Create an account</button>
+    </div>
+    <div id="resetPasswordPane" class="hidden">
+      <h1>Choose a new password</h1>
+      <p>Enter a new password for your TurnFlow account.</p>
+      <form id="resetPasswordForm">
+        <label>New Password<input id="resetPassword" type="password" required minlength="6" autocomplete="new-password"></label>
+        <label>Confirm Password<input id="resetPasswordConfirm" type="password" required minlength="6" autocomplete="new-password"></label>
+        <div id="resetPasswordMessage" class="auth-message"></div>
+        <button class="primary auth-primary" type="submit">Update Password</button>
+      </form>
+    </div>
+    <div id="pendingAccessPane" class="hidden">
+      <h1>Access pending</h1>
+      <p>Your account is connected to Northwoods Property Management and is waiting for an administrator to assign your location and access.</p>
+      <button id="pendingSignOut" class="action-secondary auth-primary" type="button">Sign Out</button>
     </div>
     <div id="workspacePane" class="hidden">
       <h1>Connect your workspace</h1>
@@ -63,5 +79,5 @@
  </div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="app.js?v=94"></script>
+<script src="app.js?v=95"></script>
 </body></html>
