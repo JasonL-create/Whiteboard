@@ -577,8 +577,8 @@ async function loadUserAccessAdmin(){
  const {data,error}=await sb.rpc('list_turnflow_users',{p_organization_id:cloudOrgId});
  if(error){host.innerHTML=`<div class="import-warning">${escapeHTML(error.message)}</div>`;return}
  const grouped=new Map();(data||[]).forEach(r=>{const id=String(r.user_id);if(!grouped.has(id))grouped.set(id,{...r,locations:[]});if(r.location_id)grouped.get(id).locations.push(r)});
- const users=[...grouped.values()],pending=users.filter(u=>!u.locations.length).length;const badge=$('#pendingUserCount');if(badge){badge.textContent=pending?pending:'';badge.style.display=pending?'inline-grid':'none'}
- host.innerHTML=users.map(u=>{const a=u.locations[0];const level=a?.access_level||'';const loc=a?.location_id||'';const companyWide=['management','admin'].includes(level);const isSelf=String(u.user_id)===String(cloudUser.id);const locationControl=companyWide?`<select class="user-location-select company-wide" data-user="${u.user_id}" disabled><option value="all" selected>All Locations</option></select>`:`<select class="user-location-select" data-user="${u.user_id}"><option value="">Choose location…</option>${turnflowLocations.map(l=>`<option value="${l.id}" ${String(loc)===String(l.id)?'selected':''}>${escapeHTML(l.name)}</option>`).join('')}</select>`;return `<div class="user-access-row ${!a?'pending-user':''}"><div class="user-access-person"><strong>${escapeHTML(u.display_name||u.email)}</strong><span>${escapeHTML(u.email)}</span>${!a?'<em>Pending access</em>':''}</div>${locationControl}<select class="user-role-select" data-user="${u.user_id}"><option value="staff" ${level==='staff'?'selected':''}>Staff</option><option value="management" ${level==='management'?'selected':''}>Management</option><option value="admin" ${level==='admin'?'selected':''}>Admin</option></select><div class="user-access-actions"><button class="primary save-user-access" data-user="${u.user_id}">${a?'Save':'Approve Access'}</button>${a&&!isSelf?`<button class="action-secondary revoke-user-access" data-user="${u.user_id}">Revoke</button>`:''}</div></div>`}).join('')||'<div class="empty configure-empty">No users found.</div>';
+ const users=[...grouped.values()],pending=users.filter(u=>u.request_status==='pending'&&!u.locations.length).length;const badge=$('#pendingUserCount');if(badge){badge.textContent=pending?pending:'';badge.style.display=pending?'inline-grid':'none'}
+ host.innerHTML=users.map(u=>{const a=u.locations[0];const revoked=u.request_status==='revoked'&&!a;const level=a?.access_level||'staff';const loc=a?.location_id||'';const companyWide=['management','admin'].includes(level);const isSelf=String(u.user_id)===String(cloudUser.id);const locationControl=companyWide?`<select class="user-location-select company-wide" data-user="${u.user_id}" disabled><option value="all" selected>All Locations</option></select>`:`<select class="user-location-select" data-user="${u.user_id}"><option value="">Choose location…</option>${turnflowLocations.map(l=>`<option value="${l.id}" ${String(loc)===String(l.id)?'selected':''}>${escapeHTML(l.name)}</option>`).join('')}</select>`;return `<div class="user-access-row ${!a?'pending-user':''}"><div class="user-access-person"><strong>${escapeHTML(u.display_name||u.email)}</strong><span>${escapeHTML(u.email)}</span>${revoked?'<em>Revoked</em>':(!a?'<em>Pending access</em>':'')}</div>${locationControl}<select class="user-role-select" data-user="${u.user_id}"><option value="staff" ${level==='staff'?'selected':''}>Staff</option><option value="management" ${level==='management'?'selected':''}>Management</option><option value="admin" ${level==='admin'?'selected':''}>Admin</option></select><div class="user-access-actions"><button class="primary save-user-access" data-user="${u.user_id}">${a?'Save':(revoked?'Restore Access':'Approve Access')}</button>${a&&!isSelf?`<button class="action-secondary revoke-user-access" data-user="${u.user_id}">Revoke</button>`:''}</div></div>`}).join('')||'<div class="empty configure-empty">No users found.</div>';
  host.querySelectorAll('.save-user-access').forEach(b=>b.onclick=async()=>{const id=b.dataset.user,level=host.querySelector(`.user-role-select[data-user="${id}"]`)?.value;let loc=host.querySelector(`.user-location-select[data-user="${id}"]`)?.value;if(['management','admin'].includes(level)){const user=users.find(x=>String(x.user_id)===String(id));loc=user?.locations?.[0]?.location_id||turnflowLocations[0]?.id||''}if(!loc){await tfAlert('Location Required','Choose a location before approving access.');return}b.disabled=true;const {error}=await sb.rpc('set_turnflow_user_access',{p_organization_id:cloudOrgId,p_user_id:id,p_location_id:loc,p_access_level:level});b.disabled=false;if(error){await tfAlert('Could Not Save Access',escapeHTML(error.message));return}syncToast('User access saved');await refreshAdminPendingCount();renderShell();await loadUserAccessAdmin()});
  host.querySelectorAll('.user-role-select').forEach(sel=>sel.onchange=()=>{const id=sel.dataset.user;const locSel=host.querySelector(`.user-location-select[data-user="${id}"]`);if(!locSel)return;const companyWide=['management','admin'].includes(sel.value);if(companyWide){locSel.innerHTML='<option value="all" selected>All Locations</option>';locSel.disabled=true;locSel.classList.add('company-wide')}else{const user=users.find(x=>String(x.user_id)===String(id));const saved=user?.locations?.[0]?.location_id||'';locSel.innerHTML='<option value="">Choose location…</option>'+turnflowLocations.map(l=>`<option value="${l.id}" ${String(saved)===String(l.id)?'selected':''}>${escapeHTML(l.name)}</option>`).join('');locSel.disabled=false;locSel.classList.remove('company-wide')}});
  host.querySelectorAll('.revoke-user-access').forEach(b=>b.onclick=async()=>{const id=b.dataset.user;const ok=await turnFlowDialog({title:'Revoke Access?',message:'This user will remain signed up but will no longer be able to see TurnFlow operational data.',confirmText:'Revoke Access',cancelText:'Cancel'});if(!ok)return;const {error}=await sb.rpc('revoke_turnflow_user_access',{p_organization_id:cloudOrgId,p_user_id:id});if(error){await tfAlert('Could Not Revoke Access',escapeHTML(error.message));return}syncToast('User access revoked');await refreshAdminPendingCount();renderShell();await loadUserAccessAdmin()});
@@ -677,6 +677,8 @@ var localEditGeneration=0;
 // v93 locations: regular staff operate inside their assigned office; owners/admins
 // may switch between a single location and the combined All Locations workspace.
 var turnflowLocations=[],userLocationIds=new Set(),currentLocationId=null,currentLocationMode='single',cloudOrgRole='member',cloudAccessLevel='staff',pendingAccessCount=0,pendingAccessPollTimer=null;
+const TURNFLOW_APP_URL=new URL('./',window.location.href).origin+new URL('./',window.location.href).pathname;
+var pendingUserApprovalTimer=null;
 var propertyLocationById=new Map(),propertyLocationByNorm=new Map(),lbLocationByNumber=new Map(),writeLocationOverride=null;
 function locationName(id){return turnflowLocations.find(l=>String(l.id)===String(id))?.name||''}
 function isAllLocations(){return currentLocationMode==='all'}
@@ -1445,7 +1447,7 @@ async function connectWorkspace(orgId,orgRole='member'){
   await refreshAdminPendingCount();
   if(pendingAccessCount)render();
   clearInterval(pendingAccessPollTimer);
-  if(['owner','admin'].includes(cloudOrgRole))pendingAccessPollTimer=setInterval(async()=>{const before=pendingAccessCount;await refreshAdminPendingCount();if(before!==pendingAccessCount)renderShell()},30000);
+  if(['owner','admin'].includes(cloudOrgRole))pendingAccessPollTimer=setInterval(async()=>{const before=pendingAccessCount;await refreshAdminPendingCount();if(before!==pendingAccessCount){renderShell();if(view==='settings')await loadUserAccessAdmin()}},5000);
 
   // The legacy whole-workspace channel/poll is recovery-only after migration.
   if(cloudChannel){await sb.removeChannel(cloudChannel);cloudChannel=null}
@@ -1476,12 +1478,13 @@ async function afterAuth(user){
 }
 function showPendingAccess(){
  document.querySelector('#authLoginPane').classList.add('hidden');document.querySelector('#workspacePane').classList.add('hidden');document.querySelector('#resetPasswordPane').classList.add('hidden');document.querySelector('#pendingAccessPane').classList.remove('hidden');document.querySelector('#authGate').classList.remove('hidden');
+ clearInterval(pendingUserApprovalTimer);pendingUserApprovalTimer=setInterval(async()=>{if(!cloudUser)return;try{const memberships=await loadMembership();if(memberships.length){clearInterval(pendingUserApprovalTimer);pendingUserApprovalTimer=null;await connectWorkspace(memberships[0].organization_id,memberships[0].role)}}catch(err){if(err?.code!=='PENDING_ACCESS'&&err?.message!=='PENDING_ACCESS')console.warn('TurnFlow approval check:',err)}},3000);
 }
-function showLoginPane(){document.querySelector('#pendingAccessPane').classList.add('hidden');document.querySelector('#workspacePane').classList.add('hidden');document.querySelector('#resetPasswordPane').classList.add('hidden');document.querySelector('#authLoginPane').classList.remove('hidden');document.querySelector('#authGate').classList.remove('hidden')}
+function showLoginPane(){clearInterval(pendingUserApprovalTimer);pendingUserApprovalTimer=null;document.querySelector('#pendingAccessPane').classList.add('hidden');document.querySelector('#workspacePane').classList.add('hidden');document.querySelector('#resetPasswordPane').classList.add('hidden');document.querySelector('#authLoginPane').classList.remove('hidden');document.querySelector('#authGate').classList.remove('hidden')}
 async function bootSupabase(){
   try{
     const {data:{session}}=await sb.auth.getSession();
-    if(session?.user)await afterAuth(session.user);
+    if(session?.user){const {data:{user},error}=await sb.auth.getUser();if(error||!user){await sb.auth.signOut({scope:'local'});showLoginPane()}else await afterAuth(user)}
     else document.querySelector('#authGate').classList.remove('hidden');
   }finally{
     document.body.classList.remove('auth-booting');
@@ -1490,7 +1493,7 @@ async function bootSupabase(){
   sb.auth.onAuthStateChange((event,session)=>{
     if(event==='PASSWORD_RECOVERY'){document.querySelector('#authLoginPane').classList.add('hidden');document.querySelector('#workspacePane').classList.add('hidden');document.querySelector('#pendingAccessPane').classList.add('hidden');document.querySelector('#resetPasswordPane').classList.remove('hidden');document.querySelector('#authGate').classList.remove('hidden');return}
     if(!session?.user){
-      cloudReady=false;cloudOrgId=null;cloudUser=null;clearInterval(pendingAccessPollTimer);pendingAccessPollTimer=null;
+      cloudReady=false;cloudOrgId=null;cloudUser=null;clearInterval(pendingAccessPollTimer);pendingAccessPollTimer=null;clearInterval(pendingUserApprovalTimer);pendingUserApprovalTimer=null;
       document.querySelector('#authGate').classList.remove('hidden');
       document.querySelector('#authLoginPane').classList.remove('hidden');
       document.querySelector('#workspacePane').classList.add('hidden');
@@ -1499,7 +1502,7 @@ async function bootSupabase(){
 }
 document.querySelector('#forgotPassword').onclick=async()=>{
  const email=document.querySelector('#authEmail').value.trim()||String((await turnFlowDialog({title:'Reset Password',message:'Enter the email address used for TurnFlow.',fields:[{label:'Email',type:'email',placeholder:'name@example.com'}],confirmText:'Send Reset Link'}))?.[0]||'').trim();if(!email)return;
- const redirectTo=location.origin+location.pathname;const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo});if(error){authMsg(error.message||'Could not send reset email.');return}authMsg('Password reset email sent. Check your inbox.',true);
+ const redirectTo=TURNFLOW_APP_URL;const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo});if(error){authMsg(error.message||'Could not send reset email.');return}authMsg('Password reset email sent. Check your inbox.',true);
 };
 document.querySelector('#resetPasswordForm').onsubmit=async e=>{e.preventDefault();const p=document.querySelector('#resetPassword').value,c=document.querySelector('#resetPasswordConfirm').value,m=document.querySelector('#resetPasswordMessage');m.textContent='';m.classList.remove('success');if(p!==c){m.textContent='Passwords do not match.';return}const btn=e.currentTarget.querySelector('button');btn.disabled=true;const {error}=await sb.auth.updateUser({password:p});btn.disabled=false;if(error){m.textContent=error.message;return}m.textContent='Password updated. Opening TurnFlow…';m.classList.add('success');const {data:{user}}=await sb.auth.getUser();if(user)await afterAuth(user)};
 document.querySelector('#pendingSignOut').onclick=async()=>{await sb.auth.signOut();location.reload()};
@@ -1516,7 +1519,7 @@ document.querySelector('#authForm').onsubmit=async e=>{
   const button=e.currentTarget.querySelector('.auth-primary');button.disabled=true;
   try{
     if(signupMode){
-      const {data:result,error}=await sb.auth.signUp({email,password});
+      const {data:result,error}=await sb.auth.signUp({email,password,options:{emailRedirectTo:TURNFLOW_APP_URL}});
       if(error)throw error;
       if(result.session){await afterAuth(result.user)}
       else authMsg('Account created. Check your email to confirm it, then sign in.',true);
@@ -1527,16 +1530,6 @@ document.querySelector('#authForm').onsubmit=async e=>{
     }
   }catch(err){authMsg(err.message||'Sign in failed.')}
   finally{button.disabled=false}
-};
-document.querySelector('#createWorkspace').onclick=async()=>{
-  workspaceMsg('');
-  try{
-    const {data:orgId,error}=await sb.rpc('create_organization',{org_name:'Northwoods Property Management'});
-    if(error)throw error;
-    await connectWorkspace(orgId);
-    const {data:org}=await sb.from('organizations').select('join_code').eq('id',orgId).single();
-    if(org?.join_code)syncToast(`Workspace created · Code ${org.join_code}`);
-  }catch(err){workspaceMsg(err.message||'Could not create workspace.')}
 };
 document.querySelector('#joinWorkspace').onclick=async()=>{
   workspaceMsg('');

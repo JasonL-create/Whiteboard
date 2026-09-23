@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>TurnFlow</title>
-<link rel="stylesheet" href="styles.css?v=96" />
+<link rel="stylesheet" href="styles.css?v=97" />
 </head>
 <body class="auth-booting">
 
@@ -39,12 +39,10 @@
       <button id="pendingSignOut" class="action-secondary auth-primary" type="button">Sign Out</button>
     </div>
     <div id="workspacePane" class="hidden">
-      <h1>Connect your workspace</h1>
-      <p>Create the Northwoods workspace once, or join it from another account.</p>
-      <button id="createWorkspace" class="primary auth-primary" type="button">Create Northwoods Workspace</button>
-      <div class="auth-divider"><span>or</span></div>
-      <label>Workspace code<input id="workspaceCode" type="text" maxlength="12" placeholder="Enter code"></label>
-      <button id="joinWorkspace" class="action-secondary auth-primary" type="button">Join Workspace</button>
+      <h1>Join Northwoods</h1>
+      <p>Enter the workspace code provided by your administrator.</p>
+      <label>Workspace Code<input id="workspaceCode" type="text" maxlength="12" placeholder="Enter code"></label>
+      <button id="joinWorkspace" class="primary auth-primary" type="button">Join Northwoods</button>
       <div id="workspaceMessage" class="auth-message"></div>
     </div>
   </div>
@@ -79,5 +77,5 @@
  </div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="app.js?v=96"></script>
+<script src="app.js?v=97"></script>
 </body></html>
