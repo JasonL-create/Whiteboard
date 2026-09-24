@@ -48,7 +48,28 @@ function turnTypeText(x){return x.completed?'TURN - COMPLETED':(get(x,'Keys Retu
 function turnTypeClass(x){return x.completed?'turn-completed':(get(x,'Keys Returned')?'turn-active':'turn')}
 function listingTypeText(x){if(x.completed)return 'LISTING - COMPLETED';if(x.archived)return 'LISTING - ACTIVE';return 'LISTING'}
 function listingTypeClass(x){if(x.completed)return 'listing-completed';if(x.archived)return 'listing-archived-active';return 'listing'}
-function statusHTML(x){if(x.archived)return field('STATUS','Archived')+field('TYPE',x.type==='turn'?'Turn':'Listing')+'<div></div>';if(x.type==='turn'){if(!get(x,'Keys Returned'))return field('NOTICE',short(get(x,'Tenant Gave Notice')))+field('SCHEDULED MOVE OUT',short(get(x,'Scheduled Move Out')))+'<div></div><div></div>';const milestone=get(x,'Mailed Disposition')?field('MAILED DISP',short(get(x,'Mailed Disposition'))):(get(x,'MOI')?field('MOI',short(get(x,'MOI'))):field('SCHEDULED MOVE OUT',short(get(x,'Scheduled Move Out'))));return field('KEYS RETURNED',short(get(x,'Keys Returned')))+milestone+`<div class="status-field"><div class="label">DAYS</div><div class="turn-days">${turnDays(x)} / 31</div></div>`+'<div></div>'}const leaseState=state(x),lease=leaseState.toUpperCase(),pickup=get(x,'Key Pickup');return field('LIST DATE',short(get(x,'Listed')))+`<div class="status-field"><div class="label">STATUS</div><div class="value lease-status ${leaseState}">${lease}</div></div>`+`<div><div class="status-field"><div class="label">DAYS</div><div class="listing-days">${listingDays(x)}</div></div></div>`+(pickup?field('KEY PICKUP',short(pickup)):'<div></div>')+(get(x,'Signed Lease Received')&&!get(x,'Remove LB')?'<div class="pickup-lb-pill">PICK UP LB</div>':'<div></div>')}
+function statusStack(label,dateValue,extraClass=''){return `<div class="status-field ${extraClass}"><div class="value status-primary">${label}</div>${dateValue?`<div class="status-date">${short(dateValue)}</div>`:''}</div>`}
+function turnStatusHTML(x){
+ const notice=get(x,'Tenant Gave Notice'),move=get(x,'Scheduled Move Out'),keys=get(x,'Keys Returned'),moi=get(x,'MOI'),mailed=get(x,'Mailed Disposition');
+ if(mailed)return statusStack('MAILED DISP',mailed);
+ if(moi)return statusStack('MOI',moi);
+ if(keys)return statusStack('KEYS RETURNED',keys);
+ if(move)return statusStack('EXPECTED MOVE OUT',move);
+ if(notice)return statusStack('RECEIVED NOTICE',notice);
+ return '<div></div>';
+}
+function statusHTML(x){
+ if(x.archived)return statusStack('ARCHIVED','')+'<div></div><div></div><div></div>';
+ const turnStatus=x.type==='turn'?turnStatusHTML(x):(x.sourceTurnId||x.sourceKeysReturned?(()=>{const t=x.sourceTurnId?data.find(y=>String(y.id)===String(x.sourceTurnId)):null;return t?turnStatusHTML(t):'<div></div>'})():'<div></div>');
+ const days=x.type==='turn'&&get(x,'Keys Returned')?`<div class="status-field"><div class="value turn-days">${turnDays(x)} / 31</div></div>`:(x.type==='listing'?`<div class="status-field"><div class="value listing-days">${listingDays(x)} DAYS</div></div>`:'<div></div>');
+ let listingStatus='<div></div>',action='<div></div>';
+ if(x.type==='listing'){
+   const leaseState=state(x),lease=leaseState.toUpperCase(),pickup=get(x,'Key Pickup');
+   listingStatus=`<div class="status-field listing-status-cell"><div class="value"><span class="lease-status ${leaseState}">${lease}</span>${pickup?`<span class="key-pickup-inline"> — Key P/U ${short(pickup)}</span>`:''}</div></div>`;
+   if(get(x,'Signed Lease Received')&&!get(x,'Remove LB'))action='<div class="pickup-lb-pill">PICK UP LB</div>';
+ }
+ return turnStatus+days+listingStatus+action;
+}
 function activeData(){return data.filter(x=>!x.archived)}
 function counts(){const active=activeData(),c=s=>active.filter(x=>state(x)===s).length;return {active,c,arch:data.filter(x=>x.archived).length}}
 function searchValue(){return ($('#shellSearch')?.value||$('#search')?.value||'').trim()}

@@ -587,3 +587,13 @@ body.auth-booting #appShell{visibility:hidden}
 .project-filter-menu button{display:flex;justify-content:space-between;gap:24px}
 .project-filter-menu b{font-weight:800;color:var(--muted)}
 @media(max-width:850px){.status-head-grid{grid-template-columns:1fr 1fr}.status-head-grid>div:nth-child(n+3){display:none}.head-sort-btn{font-size:10px}}
+
+/* v105: operational project columns */
+.status{grid-template-columns:minmax(150px,1.35fr) minmax(72px,.65fr) minmax(185px,1.45fr) minmax(112px,1fr);gap:22px}
+.status-head-grid{grid-template-columns:minmax(150px,1.35fr) minmax(72px,.65fr) minmax(185px,1.45fr) minmax(112px,1fr);gap:22px}
+.status-primary{font-weight:750;letter-spacing:.015em}
+.status-date{font-size:13px;margin-top:3px;color:var(--text);white-space:nowrap}
+.listing-status-cell .value{white-space:nowrap}
+.key-pickup-inline{color:var(--text);font-weight:400}
+.pickup-lb-pill{grid-column:4;grid-row:1}
+@media(max-width:850px){.status{grid-template-columns:1fr 1fr}.status-head-grid{grid-template-columns:1fr 1fr}.pickup-lb-pill{grid-column:auto;grid-row:auto}}
