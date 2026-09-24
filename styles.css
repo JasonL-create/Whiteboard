@@ -600,3 +600,8 @@ body.auth-booting #appShell{visibility:hidden}
 
 /* v106: sticky project column headers */
 .board-head{position:sticky;top:0;z-index:18;background:var(--bg);padding-top:10px!important;padding-bottom:9px!important;border-bottom:1px solid rgba(212,221,227,.9)}
+
+
+/* v107: project headers remain visible below the fixed app + project toolbar. */
+.board-head{position:sticky!important;top:250px!important;z-index:108!important;background:var(--bg)!important;padding-top:10px!important;padding-bottom:9px!important;border-bottom:1px solid rgba(212,221,227,.95)}
+@media(max-width:850px){.board-head{top:194px!important}}

@@ -44,7 +44,7 @@ function listingDays(x){const d=get(x,'Listed');if(!d)return 0;return diffDays(d
 function totalFromKeys(x){return x.sourceKeysReturned?diffDays(x.sourceKeysReturned,get(x,'Key Pickup')||TODAY,false):null}
 function save(){localStorage.setItem('whiteboardData',JSON.stringify(data));if(normalizedReady){localEditGeneration++;scheduleNormalizedSave()}else scheduleCloudSave()}
 function field(l,v){return `<div class="status-field"><div class="label">${l}</div><div class="value">${v}</div></div>`}
-function turnTypeText(x){return x.completed?'TURN - COMPLETED':(get(x,'Keys Returned')?'TURN - ACTIVE':'NOTICE')}
+function turnTypeText(x){return x.completed?'TURN - COMPLETED':(get(x,'Keys Returned')?'TURNING':'NOTICE')}
 function turnTypeClass(x){return x.completed?'turn-completed':(get(x,'Keys Returned')?'turn-active':'turn')}
 function listingTypeText(x){if(x.completed)return 'LISTING - COMPLETED';if(x.archived)return 'LISTING - ACTIVE';return 'LISTING'}
 function listingTypeClass(x){if(x.completed)return 'listing-completed';if(x.archived)return 'listing-archived-active';return 'listing'}
