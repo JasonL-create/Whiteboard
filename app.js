@@ -60,7 +60,21 @@ function renderRowsOnly(){
  if(view==='keys'){renderKeyRowsOnly();return;}
  $('.board-head').style.display='grid';
  let list=data.filter(x=>{if(filter==='turns')return !x.archived&&x.type==='turn';if(filter==='listings')return !x.archived&&x.type==='listing';if(filter==='key-pickup')return !x.archived&&x.type==='listing'&&!!get(x,'Key Pickup');if(filter==='lb-pickup')return !x.archived&&x.type==='listing'&&!!get(x,'Signed Lease Received')&&!get(x,'Remove LB');return filter==='archived'?x.archived:!x.archived&&(filter==='all'||state(x)===filter)});
- if(sortMode==='move')list.sort((a,b)=>(get(a,'Scheduled Move Out')||'9999').localeCompare(get(b,'Scheduled Move Out')||'9999'));if(sortMode==='keys')list.sort((a,b)=>(get(a,'Keys Returned')||'9999').localeCompare(get(b,'Keys Returned')||'9999'));if(sortMode==='31')list.sort((a,b)=>turnDays(b)-turnDays(a));if(sortMode==='listing')list.sort((a,b)=>listingDays(b)-listingDays(a));if(sortMode==='status-rented'||sortMode==='status-listed'){const rank=sortMode==='status-rented'?{rented:0,pending:1,listed:2}:{listed:0,pending:1,rented:2};list.sort((a,b)=>{const ar=a.type==='listing'?(rank[state(a)]??3):4,br=b.type==='listing'?(rank[state(b)]??3):4;return ar-br})}if(sortMode==='property-asc')list.sort((a,b)=>a.address.localeCompare(b.address));if(sortMode==='property-desc')list.sort((a,b)=>b.address.localeCompare(a.address));if(sortMode==='type')list.sort((a,b)=>(a.type+state(a)).localeCompare(b.type+state(b)));
+ const sortDate=(x,fieldName)=>(get(x,fieldName)||'9999-12-31');
+ const pendingDate=x=>get(x,'Approval Sent')||get(x,'Accepted')||get(x,'Lease Sent')||get(x,'Listed')||'9999-12-31';
+ const prioritySort=(matches,dateFn)=>list.sort((a,b)=>{const am=matches(a)?0:1,bm=matches(b)?0:1;if(am!==bm)return am-bm;if(am===0){const d=String(dateFn(a)||'9999-12-31').localeCompare(String(dateFn(b)||'9999-12-31'));if(d)return d;}return a.address.localeCompare(b.address,undefined,{numeric:true,sensitivity:'base'})});
+ if(sortMode==='move')prioritySort(x=>!!get(x,'Scheduled Move Out'),x=>sortDate(x,'Scheduled Move Out'));
+ if(sortMode==='keys')prioritySort(x=>!!get(x,'Keys Returned'),x=>sortDate(x,'Keys Returned'));
+ if(sortMode==='moi-date')prioritySort(x=>!!get(x,'MOI'),x=>sortDate(x,'MOI'));
+ if(sortMode==='list-date')prioritySort(x=>x.type==='listing'&&!!get(x,'Listed'),x=>sortDate(x,'Listed'));
+ if(sortMode==='31')list.sort((a,b)=>turnDays(b)-turnDays(a));
+ if(sortMode==='listing')list.sort((a,b)=>listingDays(b)-listingDays(a));
+ if(sortMode==='status-rented')prioritySort(x=>x.type==='listing'&&state(x)==='rented',x=>get(x,'Signed Lease Received')||get(x,'Listed'));
+ if(sortMode==='status-pending')prioritySort(x=>x.type==='listing'&&state(x)==='pending',pendingDate);
+ if(sortMode==='status-listed')prioritySort(x=>x.type==='listing'&&state(x)==='listed',x=>get(x,'Listed'));
+ if(sortMode==='status-moi')prioritySort(x=>x.type==='turn'&&!!get(x,'MOI'),x=>get(x,'MOI'));
+ if(sortMode==='status-move')prioritySort(x=>x.type==='turn'&&!get(x,'Keys Returned')&&!!get(x,'Scheduled Move Out'),x=>get(x,'Scheduled Move Out'));
+ if(sortMode==='property-asc')list.sort((a,b)=>a.address.localeCompare(b.address,undefined,{numeric:true,sensitivity:'base'}));if(sortMode==='property-desc')list.sort((a,b)=>b.address.localeCompare(a.address,undefined,{numeric:true,sensitivity:'base'}));if(sortMode==='type')list.sort((a,b)=>(a.type+state(a)).localeCompare(b.type+state(b)));
  rows.innerHTML=list.length?list.map(x=>`<section class="row ${x.archived?'archived':''} ${String(openId)===String(x.id)?'open':''}" data-id="${x.id}"><div class="row-main"><div class="type ${x.type==='listing'?listingTypeClass(x):turnTypeClass(x)}">${x.type==='listing'?listingTypeText(x):turnTypeText(x)}</div><div class="property">${x.address}${recordLocationBadge(x.locationId)}</div><div class="status">${statusHTML(x)}</div>${x.archived?'<div class="archive-pill">ARCHIVED</div>':'<div class="chev">›</div>'}</div>${String(openId)===String(x.id)?detailsHTML(x):''}</section>`).join(''):`<div class="empty">No processes in this view.</div>`;
  bindBoardRows();
 }
