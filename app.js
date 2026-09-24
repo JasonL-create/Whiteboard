@@ -317,10 +317,9 @@ function keyHeaderHTML(){
  const missingKey=keys.filter(k=>!!k.keyMissing).length;
  const assignedLB=keys.filter(k=>!!k.lb).length;
  const missingLB=keys.filter(k=>!!k.lbMissing).length;
- return `<div class="key-head-cell nav-dropdown"><button class="head-sort-btn key-tag-sort" data-key-head-sort="tag-toggle">TAG # ↕</button></div><div class="key-head-cell nav-dropdown"><button class="head-sort-btn">ADDRESS ▾</button><div class="dropdown-panel"><button data-key-head-sort="address-asc">A–Z</button><button data-key-head-sort="address-desc">Z–A</button><button data-key-head-filter="available">Available (${available})</button></div></div><div class="key-head-cell nav-dropdown"><button class="head-sort-btn">KEY LOCATION ▾</button><div class="dropdown-panel"><button data-key-head-filter="key-out">Out to (${out})</button><button data-key-head-filter="missing-key">Missing (${missingKey})</button></div></div><div class="key-head-cell nav-dropdown"><button class="head-sort-btn">LOCK BOX ▾</button><div class="dropdown-panel"><button data-key-head-filter="lb-assigned">Assigned (${assignedLB})</button><button data-key-head-filter="missing-lb">Missing (${missingLB})</button></div></div><div></div>`;
+ return `<div class="key-head-cell nav-dropdown"><button class="head-sort-btn key-tag-sort" data-key-head-sort="tag-toggle">TAG # ↕</button></div><div class="key-head-cell nav-dropdown"><button class="head-sort-btn">ADDRESS ▾</button><div class="dropdown-panel"><button data-key-head-sort="address-asc">A–Z</button><button data-key-head-sort="address-desc">Z–A</button><button data-key-head-sort="available">Available (${available})</button></div></div><div class="key-head-cell nav-dropdown"><button class="head-sort-btn">KEY LOCATION ▾</button><div class="dropdown-panel"><button data-key-head-sort="key-out">Out to (${out})</button><button data-key-head-sort="missing-key">Missing (${missingKey})</button></div></div><div class="key-head-cell nav-dropdown"><button class="head-sort-btn">LOCK BOX ▾</button><div class="dropdown-panel"><button data-key-head-sort="lb-assigned">Assigned (${assignedLB})</button><button data-key-head-sort="missing-lb">Missing (${missingLB})</button></div></div><div></div>`;
 }
 function bindKeyHeader(){
- document.querySelectorAll('[data-key-head-filter]').forEach(b=>b.onclick=e=>{e.stopPropagation();clearSearchForFilter();keyFilter=b.dataset.keyHeadFilter;renderKeys()});
  document.querySelectorAll('[data-key-head-sort]').forEach(b=>b.onclick=e=>{e.stopPropagation();const v=b.dataset.keyHeadSort;if(v==='tag-toggle')keySort=keySort==='tag-desc'?'tag':'tag-desc';else keySort=v;renderKeys()});
 }
 function renderKeyRowsOnly(){
@@ -342,7 +341,9 @@ function renderKeyRowsOnly(){
      const aa=addr(a),bb=addr(b);if(!aa&&!bb)return tagCmp();if(!aa)return 1;if(!bb)return -1;return bb.localeCompare(aa,undefined,{numeric:true,sensitivity:'base'})||tagCmp();
    }
    if(keySort==='available'||keySort==='assigned'){const aa=a.address?1:0,bb=b.address?1:0;if(aa!==bb)return keySort==='available'?aa-bb:bb-aa}
+   if(keySort==='key-out'){const aa=a.keyOut?0:1,bb=b.keyOut?0:1;if(aa!==bb)return aa-bb}
    if(keySort==='missing-key'){const aa=a.keyMissing?0:1,bb=b.keyMissing?0:1;if(aa!==bb)return aa-bb}
+   if(keySort==='lb-assigned'){const aa=a.lb?0:1,bb=b.lb?0:1;if(aa!==bb)return aa-bb}
    if(keySort==='missing-lb'){const aa=a.lbMissing?0:1,bb=b.lbMissing?0:1;if(aa!==bb)return aa-bb}
    return tagCmp();
  });
