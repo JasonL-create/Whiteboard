@@ -597,3 +597,6 @@ body.auth-booting #appShell{visibility:hidden}
 .key-pickup-inline{color:var(--text);font-weight:400}
 .pickup-lb-pill{grid-column:4;grid-row:1}
 @media(max-width:850px){.status{grid-template-columns:1fr 1fr}.status-head-grid{grid-template-columns:1fr 1fr}.pickup-lb-pill{grid-column:auto;grid-row:auto}}
+
+/* v106: sticky project column headers */
+.board-head{position:sticky;top:0;z-index:18;background:var(--bg);padding-top:10px!important;padding-bottom:9px!important;border-bottom:1px solid rgba(212,221,227,.9)}
