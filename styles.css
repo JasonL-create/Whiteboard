@@ -613,8 +613,12 @@ body.auth-booting #appShell{visibility:hidden}
 @media(max-width:850px){.board-head.key-board-head{grid-template-columns:90px 1fr 1fr}.key-board-head>div:nth-child(4){grid-column:2}.key-board-head>div:last-child{display:none}}
 
 
-/* v111: align Projects typography with Keys; keep emphasis purposeful. */
+/* v112: align Projects typography with Keys; keep emphasis purposeful. */
 .status-primary{font-size:12px!important;font-weight:800!important;letter-spacing:.055em!important;color:var(--muted)!important;text-transform:uppercase}
 .status-date{font-size:14px!important;font-weight:400!important;letter-spacing:0!important;color:var(--text)!important;margin-top:3px}
 .listing-days{font-size:14px!important;font-weight:400!important;white-space:nowrap}
 .turn-days{font-size:14px!important;font-weight:750!important;color:var(--danger)!important;white-space:nowrap}
+
+/* v112: header dropdown hit areas hug the visible header instead of the full grid column. */
+.board-head .nav-dropdown{justify-self:start;width:max-content;max-width:100%}
+.board-head .head-sort.nav-dropdown,.board-head .key-head-cell.nav-dropdown{width:max-content}
