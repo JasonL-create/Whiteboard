@@ -636,3 +636,18 @@ body.auth-booting #appShell{visibility:hidden}
 .lifecycle-checklist label{display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer}
 @media(max-width:900px){.lifecycle-checklist{grid-template-columns:1fr 1fr}}
 @media(max-width:620px){.lifecycle-checklist{grid-template-columns:1fr}.lifecycle-date{align-items:flex-start;flex-direction:column;gap:7px}}
+
+
+/* v116: New Property occupancy + explicit N/A task states */
+.lifecycle-occupancy{display:flex;align-items:center;gap:18px;margin:-2px 0 16px;font-size:13px}
+.lifecycle-occupancy>span{font-weight:700}
+.lifecycle-occupancy label{display:flex;align-items:center;gap:7px;cursor:pointer}
+.lifecycle-occupancy input{width:16px;height:16px;accent-color:#1070a4}
+.lifecycle-task{display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0}
+.lifecycle-task>label{min-width:0;flex:1}
+.lifecycle-na{border:0;background:transparent;color:#8a949d;font:700 11px/1 inherit;padding:4px 5px;border-radius:5px;cursor:pointer;letter-spacing:.02em}
+.lifecycle-na:hover{background:#e9edf0;color:#59636c}
+.lifecycle-task.is-na>label{color:#9ba3aa;opacity:.72}
+.lifecycle-task.is-na>label span{text-decoration:none}
+.lifecycle-task.is-na .lifecycle-na{background:#e3e7ea;color:#68727a}
+@media(max-width:620px){.lifecycle-occupancy{align-items:flex-start;flex-wrap:wrap;gap:10px 16px}.lifecycle-occupancy>span{width:100%}}
