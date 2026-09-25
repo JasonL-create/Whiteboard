@@ -651,3 +651,10 @@ body.auth-booting #appShell{visibility:hidden}
 .lifecycle-task.is-na>label span{text-decoration:none}
 .lifecycle-task.is-na .lifecycle-na{background:#e3e7ea;color:#68727a}
 @media(max-width:620px){.lifecycle-occupancy{align-items:flex-start;flex-wrap:wrap;gap:10px 16px}.lifecycle-occupancy>span{width:100%}}
+
+/* v117: keep N/A visually attached to its checklist item */
+.lifecycle-task{justify-content:flex-start;gap:8px}
+.lifecycle-task>label{flex:0 1 auto}
+.lifecycle-na{flex:0 0 auto;margin-left:4px;border:1px solid transparent;padding:3px 6px}
+.lifecycle-na:hover{border-color:#d8dee3;background:#eef1f3;color:#59636c}
+.lifecycle-task.is-na .lifecycle-na{border-color:#cfd6db;background:#e3e7ea;color:#68727a}
