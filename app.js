@@ -61,13 +61,12 @@ function turnStatusHTML(x){
 }
 function statusHTML(x){
  if(x.archived)return statusStack('ARCHIVED','')+'<div></div><div></div><div></div>';
- const turnStatus=x.type==='turn'?turnStatusHTML(x):(get(x,'Listed')?statusStack('LISTED',get(x,'Listed')):(get(x,'PMI')?statusStack('PMI',get(x,'PMI')):(x.sourceTurnId||x.sourceKeysReturned?(()=>{const t=x.sourceTurnId?data.find(y=>String(y.id)===String(x.sourceTurnId)):null;return t?turnStatusHTML(t):'<div></div>'})():'<div></div>')));
+ const turnStatus=x.type==='turn'?turnStatusHTML(x):(get(x,'Listed')?(`<div class="status-field"><div class="value status-primary">LISTED</div><div class="status-date">${short(get(x,'Listed'))}</div>${!get(x,'PMI')?'<div class="pmi-needed-inline">PMI NEEDED</div>':''}</div>`):(get(x,'PMI')?statusStack('PMI',get(x,'PMI')):(x.sourceTurnId||x.sourceKeysReturned?(()=>{const t=x.sourceTurnId?data.find(y=>String(y.id)===String(x.sourceTurnId)):null;return t?turnStatusHTML(t):'<div></div>'})():'<div></div>')));
  const days=x.type==='turn'&&get(x,'Keys Returned')?`<div class="status-field"><div class="value turn-days">${turnDays(x)} / 31</div></div>`:(x.type==='listing'?`<div class="status-field"><div class="value listing-days">${listingDays(x)} DAYS</div></div>`:'<div></div>');
  let listingStatus='<div></div>',action='<div></div>';
  if(x.type==='listing'){
    const leaseState=state(x),lease=leaseState.toUpperCase(),pickup=get(x,'Key Pickup');
-   const pmiNeeded=leaseState==='listed'&&get(x,'Listed')&&!get(x,'PMI');
-   listingStatus=`<div class="status-field listing-status-cell"><div class="value"><span class="lease-status ${leaseState}">${lease}</span>${pmiNeeded?`<span class="pmi-needed-inline"> — PMI NEEDED</span>`:''}${pickup?`<span class="key-pickup-inline"> — Key P/U ${short(pickup)}</span>`:''}</div></div>`;
+   listingStatus=`<div class="status-field listing-status-cell"><div class="value"><span class="lease-status ${leaseState}">${lease}</span>${pickup?`<span class="key-pickup-inline"> — Key P/U ${short(pickup)}</span>`:''}</div></div>`;
    if(get(x,'Signed Lease Received')&&!get(x,'Remove LB'))action='<div class="pickup-lb-pill">PICK UP LB</div>';
  }
  return turnStatus+days+listingStatus+action;
