@@ -658,3 +658,13 @@ body.auth-booting #appShell{visibility:hidden}
 .lifecycle-na{flex:0 0 auto;margin-left:4px;border:1px solid transparent;padding:3px 6px}
 .lifecycle-na:hover{border-color:#d8dee3;background:#eef1f3;color:#59636c}
 .lifecycle-task.is-na .lifecycle-na{border-color:#cfd6db;background:#e3e7ea;color:#68727a}
+
+/* v119: subtle project creation timestamp for expanded cards */
+.details{position:relative}
+.created-stamp{position:absolute;top:16px;right:18px;color:#b6bec4;font-size:11px;font-weight:600;white-space:nowrap;pointer-events:none}
+@media(max-width:850px){.created-stamp{position:static;text-align:right;margin:-2px 0 8px;font-size:10px}}
+
+
+/* v121: assigned lockbox mirrors the physical red lockbox key tags */
+.lb-assigned-pill{display:inline-flex;align-items:center;gap:8px;background:#c92f35;color:#fff;border-radius:999px;padding:5px 9px;font-size:12px;font-weight:800;line-height:1;white-space:nowrap}
+.lb-assigned-pill .lb-pill-date{font-weight:500;color:rgba(255,255,255,.88)}
