@@ -66,7 +66,8 @@ function statusHTML(x){
  let listingStatus='<div></div>',action='<div></div>';
  if(x.type==='listing'){
    const leaseState=state(x),lease=leaseState.toUpperCase(),pickup=get(x,'Key Pickup');
-   listingStatus=`<div class="status-field listing-status-cell"><div class="value"><span class="lease-status ${leaseState}">${lease}</span>${pickup?`<span class="key-pickup-inline"> — Key P/U ${short(pickup)}</span>`:''}</div></div>`;
+   const pmiNeeded=leaseState==='listed'&&get(x,'Listed')&&!get(x,'PMI');
+   listingStatus=`<div class="status-field listing-status-cell"><div class="value"><span class="lease-status ${leaseState}">${lease}</span>${pmiNeeded?`<span class="pmi-needed-inline"> — PMI NEEDED</span>`:''}${pickup?`<span class="key-pickup-inline"> — Key P/U ${short(pickup)}</span>`:''}</div></div>`;
    if(get(x,'Signed Lease Received')&&!get(x,'Remove LB'))action='<div class="pickup-lb-pill">PICK UP LB</div>';
  }
  return turnStatus+days+listingStatus+action;

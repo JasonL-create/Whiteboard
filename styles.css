@@ -668,3 +668,5 @@ body.auth-booting #appShell{visibility:hidden}
 /* v121: assigned lockbox mirrors the physical red lockbox key tags */
 .lb-assigned-pill{display:inline-flex;align-items:center;gap:8px;background:#c92f35;color:#fff;border-radius:999px;padding:5px 9px;font-size:12px;font-weight:800;line-height:1;white-space:nowrap}
 .lb-assigned-pill .lb-pill-date{font-weight:500;color:rgba(255,255,255,.88)}
+
+.pmi-needed-inline{color:var(--danger);font-size:12px;font-weight:700;white-space:nowrap}
