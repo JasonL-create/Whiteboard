@@ -37,6 +37,7 @@ let data=stored||seed,openId=null,filter='all';
 let view='board', keyOpenId=null;
 const $=s=>document.querySelector(s),rows=$('#rows');
 let sortMode='default', keyFilter='all', keySort='tag', lbMenuOpen=false, reportTab='live', reportDrill='';
+let resourceSections=[],resources=[];
 const get=(x,n)=>x.process.find(p=>p.name===n)?.value||'';const short=d=>d?d.slice(5).replace('-','/'):'—';
 function diffDays(start,end=TODAY,inclusive=false){if(!start)return 0;const n=Math.round((Date.parse(end)-Date.parse(start))/86400000);return Math.max(inclusive?1:0,n+(inclusive?1:0))}
 function state(x){if(x.archived)return'archived';if(x.completed)return'completed';if(x.type==='turn'){return get(x,'Keys Returned')?'active':'notice';}if(get(x,'Signed Lease Received'))return'rented';if(get(x,'Approval Sent')||get(x,'Accepted')||get(x,'Lease Sent'))return'pending';return'listed'}
@@ -144,7 +145,7 @@ async function tfAlert(title,message){await turnFlowDialog({title,message,showCa
 function renderShell(){
  const {active,c,arch}=counts(), turns=active.filter(x=>x.type==='turn').length, listings=active.filter(x=>x.type==='listing').length;
  const q=searchValue().replace(/"/g,'&quot;');
- $('#masterNav').innerHTML=`<div class="master-left"><button id="projectsNav" class="nav-btn ${view==='board'&&filter!=='archived'?'selected':''}"><img class="nav-icon-img" src="icon-projects.png" alt="">PROJECTS</button><button id="keysNav" class="nav-btn ${view==='keys'?'selected':''}"><img class="nav-icon-img" src="icon-keys.png" alt="">KEYS</button><div class="more-nav nav-dropdown"><button id="moreNav" class="nav-btn more-nav-btn ${((view==='board'&&filter==='archived')||view==='reports'||view==='settings')?'selected':''}">MORE ${pendingAccessCount?`<span class="pending-nav-badge">${pendingAccessCount}</span>`:''} <span class="more-caret">⌄</span></button><div class="dropdown-panel more-menu"><button id="archiveNav" class="${view==='board'&&filter==='archived'?'current':''}">Archive</button><button id="reportsNav" class="${view==='reports'?'current':''}">Reports</button><button id="settingsNav" class="${view==='settings'?'current':''}">Configure</button></div></div></div>`;
+ $('#masterNav').innerHTML=`<div class="master-left"><button id="projectsNav" class="nav-btn ${view==='board'&&filter!=='archived'?'selected':''}"><img class="nav-icon-img" src="icon-projects.png" alt="">PROJECTS</button><button id="keysNav" class="nav-btn ${view==='keys'?'selected':''}"><img class="nav-icon-img" src="icon-keys.png" alt="">KEYS</button><div class="more-nav nav-dropdown"><button id="moreNav" class="nav-btn more-nav-btn ${((view==='board'&&filter==='archived')||view==='reports'||view==='resources'||view==='settings')?'selected':''}">MORE ${pendingAccessCount?`<span class="pending-nav-badge">${pendingAccessCount}</span>`:''} <span class="more-caret">⌄</span></button><div class="dropdown-panel more-menu"><button id="archiveNav" class="${view==='board'&&filter==='archived'?'current':''}">Archive</button><button id="reportsNav" class="${view==='reports'?'current':''}">Reports</button><button id="resourcesNav" class="${view==='resources'?'current':''}">Resources</button><button id="settingsNav" class="${view==='settings'?'current':''}">Configure</button></div></div></div>`;
  const heroSearch=`<div class="hero-search"><div class="search-wrap"><input id="shellSearch" class="shell-search" type="search" placeholder="Search" value="${q}"></div></div>`;
 
  const hero=$('#pageHero');
@@ -152,6 +153,9 @@ function renderShell(){
    const keyFilterLabel={'lb-out':'Checked Out LB','key-out':'Checked Out Key','missing-lb':'Missing LB','missing-key':'Missing Key','available':'Available'}[keyFilter]||'';
    const checkedOutLB=keys.filter(k=>!!k.lb).length, checkedOutKey=keys.filter(k=>!!k.keyOut).length, missingLB=keys.filter(k=>!!k.lbMissing).length, missingKey=keys.filter(k=>!!k.keyMissing).length, availableKeys=keys.filter(k=>!k.address).length;
    hero.innerHTML=`<div class="context-left"><button id="addKeyTagHero" class="hero-add">Add New Key Tag</button><button id="allKeysFilter" class="filter-btn ${keyFilter==='all'?'active':''}">All <b>${keys.length}</b></button><div class="nav-dropdown"><button class="filter-btn ${keyFilter!=='all'?'active':''}">Filter By${keyFilterLabel?' · '+keyFilterLabel:' ▾'}</button><div class="dropdown-panel"><button data-key-filter="lb-out">Checked Out LB <b>${checkedOutLB}</b></button><button data-key-filter="key-out">Checked Out Key <b>${checkedOutKey}</b></button><button data-key-filter="missing-lb">Missing LB <b>${missingLB}</b></button><button data-key-filter="missing-key">Missing Key <b>${missingKey}</b></button><button data-key-filter="available">Available <b>${availableKeys}</b></button></div></div></div>${heroSearch}`;
+   $('#contextNav').innerHTML='';
+ } else if(view==='resources'){
+   hero.innerHTML=`<div class="page-title-inline">RESOURCES</div>${heroSearch}`;
    $('#contextNav').innerHTML='';
  } else if(view==='reports'){
    hero.innerHTML=`<div class="context-left report-tabs"><button class="filter-btn ${reportTab==='live'?'active':''}" data-report-tab="live">LIVE OPERATIONS</button><button class="filter-btn ${reportTab==='inventory'?'active':''}" data-report-tab="inventory">INVENTORY</button><button class="filter-btn ${reportTab==='monthly'?'active':''}" data-report-tab="monthly">MONTHLY REPORTS</button></div>${heroSearch}`;
@@ -179,7 +183,8 @@ function bindShell(){
  $('#archiveNav').onclick=()=>{view='board';filter='archived';openId=null;lbMenuOpen=false;render()};
  $('#settingsNav')?.addEventListener('click',()=>{view='settings';filter='all';openId=null;lbMenuOpen=false;render()});
  $('#reportsNav')?.addEventListener('click',()=>{view='reports';reportTab='live';reportDrill='';openId=null;renderReports()});
- const si=$('#shellSearch'); if(si) si.oninput=e=>{setSearchValue(e.target.value); renderRowsOnly()};
+ $('#resourcesNav')?.addEventListener('click',()=>{view='resources';openId=null;renderResources()});
+ const si=$('#shellSearch'); if(si) si.oninput=e=>{setSearchValue(e.target.value); if(view==='resources')renderResourceRows(); else renderRowsOnly()};
  $('#pageHero').querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{clearSearchForFilter();view='board';filter=b.dataset.f;openId=null;render()});
  $('#pageHero').querySelectorAll('[data-sort]').forEach(b=>b.onclick=()=>{sortMode=b.dataset.sort;render()});
  document.querySelectorAll('.board-head [data-head-sort]').forEach(b=>b.onclick=e=>{e.stopPropagation();sortMode=b.dataset.headSort;render()});
@@ -194,7 +199,7 @@ function bindShell(){
  }
 }
 
-function render(){if(view==='keys'){renderKeys();return;}if(view==='settings'){renderSettings();return;}if(view==='reports'){renderReports();return;} const head=$('.board-head');head.classList.remove('key-board-head');head.innerHTML=`<div class="head-sort nav-dropdown"><button class="head-sort-btn">TYPE ▾</button><div class="dropdown-panel"><button data-head-sort="type-active">Turning</button><button data-head-sort="type-listed">Listing</button><button data-head-sort="type-notice">Notice</button></div></div><div class="head-sort nav-dropdown"><button class="head-sort-btn">ADDRESS ▾</button><div class="dropdown-panel"><button data-head-sort="property-asc">A → Z</button><button data-head-sort="property-desc">Z → A</button></div></div><div class="status-head-grid"><div class="head-sort nav-dropdown"><button class="head-sort-btn">TURN STATUS ▾</button><div class="dropdown-panel"><button data-head-sort="list-date">Listed</button><button data-head-sort="pmi-date">PMI</button><button data-head-sort="status-mailed">Mailed Disp</button><button data-head-sort="status-moi">MOI</button><button data-head-sort="keys">Keys Returned</button><button data-head-sort="status-move">Expected Move Out</button><button data-head-sort="notice-date">Received Notice</button></div></div><div class="head-sort nav-dropdown"><button class="head-sort-btn">DAYS ▾</button><div class="dropdown-panel"><button data-head-sort="31">31 Days</button><button data-head-sort="listing">Listing Days</button></div></div><div class="head-sort nav-dropdown"><button class="head-sort-btn">LISTING STATUS ▾</button><div class="dropdown-panel"><button data-head-sort="status-rented">Rented</button><button data-head-sort="status-pending">Pending</button><button data-head-sort="status-listed">Listed</button></div></div><div>ACTION</div></div><div></div>`;head.style.display='grid';renderShell();bindShell();renderRowsOnly()}
+function render(){if(view==='keys'){renderKeys();return;}if(view==='settings'){renderSettings();return;}if(view==='resources'){renderResources();return;}if(view==='reports'){renderReports();return;} const head=$('.board-head');head.classList.remove('key-board-head');head.innerHTML=`<div class="head-sort nav-dropdown"><button class="head-sort-btn">TYPE ▾</button><div class="dropdown-panel"><button data-head-sort="type-active">Turning</button><button data-head-sort="type-listed">Listing</button><button data-head-sort="type-notice">Notice</button></div></div><div class="head-sort nav-dropdown"><button class="head-sort-btn">ADDRESS ▾</button><div class="dropdown-panel"><button data-head-sort="property-asc">A → Z</button><button data-head-sort="property-desc">Z → A</button></div></div><div class="status-head-grid"><div class="head-sort nav-dropdown"><button class="head-sort-btn">TURN STATUS ▾</button><div class="dropdown-panel"><button data-head-sort="list-date">Listed</button><button data-head-sort="pmi-date">PMI</button><button data-head-sort="status-mailed">Mailed Disp</button><button data-head-sort="status-moi">MOI</button><button data-head-sort="keys">Keys Returned</button><button data-head-sort="status-move">Expected Move Out</button><button data-head-sort="notice-date">Received Notice</button></div></div><div class="head-sort nav-dropdown"><button class="head-sort-btn">DAYS ▾</button><div class="dropdown-panel"><button data-head-sort="31">31 Days</button><button data-head-sort="listing">Listing Days</button></div></div><div class="head-sort nav-dropdown"><button class="head-sort-btn">LISTING STATUS ▾</button><div class="dropdown-panel"><button data-head-sort="status-rented">Rented</button><button data-head-sort="status-pending">Pending</button><button data-head-sort="status-listed">Listed</button></div></div><div>ACTION</div></div><div></div>`;head.style.display='grid';renderShell();bindShell();renderRowsOnly()}
 function lifecycleDefaults(type){return type==='turn'?{enabled:false,date:'',occupancy:'',steps:{notifyTenants:false,deleteActivity:false,utilitiesCanceled:false,setMaFeeZero:false,setReserveZero:false,clearKeyTag:false,hideProperty:false},na:{}}:{enabled:false,date:'',occupancy:'',steps:{createOwner:false,createProperty:false,addTenants:false,transferUtilities:false,createDropbox:false,notifyNewTenants:false,collectKeys:false,collectSd:false,addTenantActivities:false},na:{}}}
 function lifecycleState(x){const base=lifecycleDefaults(x.type);const src=x.lifecycle||{};return {enabled:!!src.enabled,date:src.date||'',occupancy:src.occupancy||'',steps:{...base.steps,...(src.steps||{})},na:{...(base.na||{}),...(src.na||{})}}}
 function lifecycleHTML(x){if(x.archived)return '';const l=lifecycleState(x);const isTurn=x.type==='turn';const title=isTurn?'Management Closeout':'New Property';const dateLabel=isTurn?'Termination Date':'Management Start Date';const steps=isTurn?[['notifyTenants','Notify Tenants'],['deleteActivity','Delete Activity'],['utilitiesCanceled','Utilities Canceled'],['setMaFeeZero','Set MA Fee to $0.00'],['setReserveZero','Set Reserve to $0.00'],['clearKeyTag','Clear Key Tag'],['hideProperty','Hide Property']]:[['createOwner','Create Owner'],['createProperty','Create Property'],['addTenants','Add Tenants'],['transferUtilities','Transfer Utilities'],['createDropbox','Create Dropbox Folder'],['notifyNewTenants','Notify New Tenants'],['collectKeys','Collect Keys'],['collectSd','Collect SD'],['addTenantActivities','Add Tenant Activities']];const occupancy=!isTurn?`<div class="lifecycle-occupancy"><span>Occupancy</span><label><input class="lifecycle-occupancy-check" data-occupancy="vacant" type="checkbox" ${l.occupancy==='vacant'?'checked':''}> Vacant</label><label><input class="lifecycle-occupancy-check" data-occupancy="occupied" type="checkbox" ${l.occupancy==='occupied'?'checked':''}> Occupied</label></div>`:'';return `<div class="lifecycle-block ${l.enabled?'is-open':''}"><label class="lifecycle-toggle"><input class="lifecycle-enable" type="checkbox" ${l.enabled?'checked':''}><span>${title}</span></label>${l.enabled?`<div class="lifecycle-body"><label class="lifecycle-date"><span>${dateLabel}</span><input class="lifecycle-date-input" type="date" value="${l.date}"></label>${occupancy}<div class="lifecycle-checklist">${steps.map(([key,label])=>`<div class="lifecycle-task ${l.na[key]?'is-na':''}"><label><input class="lifecycle-step" data-step="${key}" type="checkbox" ${l.steps[key]?'checked':''} ${l.na[key]?'disabled':''}><span>${label}</span></label><button type="button" class="lifecycle-na ${l.na[key]?'active':''}" data-step="${key}" aria-pressed="${l.na[key]?'true':'false'}">N/A</button></div>`).join('')}</div></div>`:''}</div>`}
@@ -310,9 +315,13 @@ function renderUniversalSearch(q){
  $('.board-head').style.display='none';
  const processMatches=data.filter(x=>processSearchText(x).includes(q));
  const keyMatches=keys.filter(k=>keySearchText(k).includes(q));
+ const resourceMatches=resources.filter(r=>resourceSearchText(r).includes(q));
+ const resourceHTML=resourceMatches.length?`<section class="universal-resource-results"><div class="universal-section-label">RESOURCES</div>${resourceMatches.slice(0,8).map(r=>`<button class="resource-search-result" data-resource-id="${r.id}"><strong>${escapeHTML(r.name)}</strong><span>${escapeHTML(resourceSectionName(r.section_id))}${r.phone?' · '+escapeHTML(r.phone):''}</span></button>`).join('')}${resourceMatches.length>8?`<button class="resource-search-all">See all ${resourceMatches.length} results in Resources</button>`:''}</section>`:'';
  const processHTML=processMatches.map(x=>`<section class="row ${x.archived?'archived':''} ${String(openId)===String(x.id)?'open':''}" data-id="${x.id}"><div class="row-main"><div class="type ${x.type==='listing'?listingTypeClass(x):turnTypeClass(x)}">${x.type==='listing'?listingTypeText(x):turnTypeText(x)}${lifecycleState(x).enabled?`<span class="portfolio-dot ${x.type==='listing'?'gain':'loss'}" title="${x.type==='listing'?'New property':'Management closeout'}"></span>`:''}</div><div class="property">${x.address}${recordLocationBadge(x.locationId)}</div><div class="status">${statusHTML(x)}</div>${x.archived?'<div class="archive-pill">ARCHIVED</div>':'<div class="chev">›</div>'}</div>${String(openId)===String(x.id)?detailsHTML(x):''}</section>`).join('');
  const keyHTML=keyMatches.map(keyRowHTML).join('');
- rows.innerHTML=(processHTML||keyHTML)?`${processHTML}${keyHTML}`:'<div class="empty">No results found.</div>';
+ rows.innerHTML=(processHTML||keyHTML||resourceHTML)?`${resourceHTML}${processHTML}${keyHTML}`:'<div class="empty">No results found.</div>';
+ rows.querySelectorAll('[data-resource-id]').forEach(b=>b.onclick=()=>{view='resources';window._resourceFocus=b.dataset.resourceId;renderResources()});
+ rows.querySelector('.resource-search-all')?.addEventListener('click',()=>{view='resources';renderResources()});
  highlightSearchMatches(rows,q);
  bindBoardRows();
  rows.querySelectorAll('.key-main').forEach(e=>e.onclick=()=>{keyOpenId=keyOpenId===e.parentElement.dataset.kid?null:e.parentElement.dataset.kid;renderRowsOnly()});
@@ -620,6 +629,41 @@ function openReportRecord(type,id){
   requestAnimationFrame(()=>requestAnimationFrame(()=>document.querySelector(`.key-row[data-kid="${CSS.escape(String(k.id))}"]`)?.scrollIntoView({behavior:'smooth',block:'center'})));
  }
 }
+function resourceSectionName(id){return resourceSections.find(s=>String(s.id)===String(id))?.name||'Resources'}
+function resourceSearchText(r){return [resourceSectionName(r.section_id),r.name,r.phone,r.details,r.notes].filter(Boolean).join(' ').toLowerCase()}
+async function loadResources(){
+ if(!cloudOrgId)return;
+ let sq=sb.from('resource_sections').select('*').eq('organization_id',cloudOrgId).order('sort_order').order('name');
+ let rq=sb.from('resources').select('*').eq('organization_id',cloudOrgId).order('sort_order').order('name');
+ if(!isAllLocations()&&currentLocationId){sq=sq.or(`location_id.eq.${currentLocationId},location_id.is.null`);rq=rq.or(`location_id.eq.${currentLocationId},location_id.is.null`)}
+ const [a,b]=await Promise.all([sq,rq]);if(a.error||b.error){console.warn('Resources not available. Run the v125 resources migration.',a.error||b.error);resourceSections=[];resources=[];return}resourceSections=a.data||[];resources=b.data||[];
+}
+function resourceLocationBadge(r){return isAllLocations()?`<span class="location-badge">${escapeHTML(r.location_id?locationName(r.location_id):'All Locations')}</span>`:''}
+function renderResourceRows(){
+ const q=searchValue().toLowerCase();let rs=resources.filter(r=>!q||resourceSearchText(r).includes(q));
+ const sectionIds=new Set(rs.map(r=>String(r.section_id)));
+ const sections=resourceSections.filter(s=>sectionIds.has(String(s.id))||!q);
+ rows.innerHTML=`<div class="resources-page"><div class="resources-heading"><div><h1>Resources</h1><p>Shared utility accounts, contacts and office reference information.</p></div><button id="addResourceSection" class="action-secondary">+ Add Section</button></div>${sections.map(sec=>{const items=rs.filter(r=>String(r.section_id)===String(sec.id));return `<section class="resource-section" data-resource-section="${sec.id}"><div class="resource-section-head"><h2>${escapeHTML(sec.name)}</h2><button class="resource-add-line" data-section="${sec.id}">+ Add Line</button></div><div class="resource-table"><div class="resource-table-head"><span>NAME</span><span>PHONE</span><span>DETAILS</span><span>NOTES</span><span></span></div>${items.map(r=>`<div class="resource-row ${String(window._resourceFocus||'')===String(r.id)?'resource-focus':''}" data-resource-row="${r.id}"><div><strong>${escapeHTML(r.name)}</strong>${resourceLocationBadge(r)}</div><div>${escapeHTML(r.phone||'')}</div><div>${escapeHTML(r.details||'')}</div><div>${escapeHTML(r.notes||'')}</div><div class="resource-actions"><button data-edit-resource="${r.id}" title="Edit">Edit</button><button data-delete-resource="${r.id}" title="Delete">×</button></div></div>`).join('')||'<div class="resource-empty">No entries in this section.</div>'}</div></section>`}).join('')}${!sections.length?'<div class="empty">No resource results found.</div>':''}</div>`;
+ highlightSearchMatches(rows,q);
+ $('#addResourceSection')?.addEventListener('click',addResourceSection);
+ rows.querySelectorAll('.resource-add-line').forEach(b=>b.onclick=()=>editResource(null,b.dataset.section));
+ rows.querySelectorAll('[data-edit-resource]').forEach(b=>b.onclick=()=>editResource(b.dataset.editResource));
+ rows.querySelectorAll('[data-delete-resource]').forEach(b=>b.onclick=()=>deleteResource(b.dataset.deleteResource));
+ if(window._resourceFocus){const id=window._resourceFocus;window._resourceFocus=null;requestAnimationFrame(()=>{const el=rows.querySelector(`[data-resource-row="${CSS.escape(String(id))}"]`);el?.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>el?.classList.remove('resource-focus'),2200)})}
+}
+async function renderResources(){view='resources';$('.board-head').style.display='none';renderShell();await loadResources();renderResourceRows()}
+async function addResourceSection(){
+ const fields=[{label:'Section Name',placeholder:'e.g. Vendors'}];if(isAllLocations())fields.push({label:'Location',type:'select',options:[{value:'all',label:'All Locations'},...turnflowLocations.map(l=>({value:l.id,label:l.name}))]});
+ const v=await turnFlowDialog({title:'Add Resource Section',fields,confirmText:'Add Section'});if(!v||!v[0].trim())return;const loc=isAllLocations()?(v[1]==='all'?null:v[1]):currentLocationId;
+ const {error}=await sb.from('resource_sections').insert({organization_id:cloudOrgId,location_id:loc,name:v[0].trim(),sort_order:resourceSections.length+1,created_by:cloudUser.id});if(error){await tfAlert('Could Not Add Section',escapeHTML(error.message));return}await renderResources();
+}
+async function editResource(id,sectionId){
+ const r=id?resources.find(x=>String(x.id)===String(id)):null;const fields=[{label:'Name',value:r?.name||'',placeholder:'Company, city, contact, etc.'},{label:'Phone',value:r?.phone||'',placeholder:'Optional'},{label:'Details',value:r?.details||'',placeholder:'Account, email, extension, rate, etc.'},{label:'Notes',value:r?.notes||'',placeholder:'Optional'}];
+ if(isAllLocations())fields.push({label:'Location',type:'select',options:[{value:'all',label:'All Locations'},...turnflowLocations.map(l=>({value:l.id,label:l.name}))]});
+ const v=await turnFlowDialog({title:r?'Edit Resource':'Add Resource',fields,confirmText:r?'Save':'Add'});if(!v||!v[0].trim())return;const loc=isAllLocations()?(v[4]==='all'?null:v[4]):(r?.location_id||currentLocationId);
+ const payload={organization_id:cloudOrgId,location_id:loc,section_id:r?.section_id||sectionId,name:v[0].trim(),phone:v[1].trim(),details:v[2].trim(),notes:v[3].trim(),updated_at:new Date().toISOString()};let res;if(r)res=await sb.from('resources').update(payload).eq('id',r.id);else res=await sb.from('resources').insert({...payload,sort_order:resources.filter(x=>String(x.section_id)===String(sectionId)).length+1,created_by:cloudUser.id});if(res.error){await tfAlert('Could Not Save Resource',escapeHTML(res.error.message));return}await renderResources();
+}
+async function deleteResource(id){const r=resources.find(x=>String(x.id)===String(id));if(!r)return;const ok=await turnFlowDialog({title:'Delete Resource?',message:`Delete <strong>${escapeHTML(r.name)}</strong> from Resources?`,confirmText:'Delete',cancelText:'Cancel',danger:true});if(!ok)return;const {error}=await sb.from('resources').delete().eq('id',id);if(error){await tfAlert('Could Not Delete Resource',escapeHTML(error.message));return}await renderResources()}
 function renderReports(){
  view='reports';renderShell();$('.board-head').style.display='none';
  const active=data.filter(x=>!x.archived),turns=active.filter(x=>x.type==='turn'),listings=active.filter(x=>x.type==='listing');
@@ -824,7 +868,7 @@ function renderLocationSelector(){
 }
 async function refreshForLocation(){
   if(!normalizedReady)return;
-  const rowsData=await fetchNormalized();applyNormalized(rowsData,{renderUI:false});render();
+  const rowsData=await fetchNormalized();applyNormalized(rowsData,{renderUI:false});await loadResources();render();
 }
 
 const TURNFLOW_CLIENT_ID=(crypto.randomUUID?crypto.randomUUID():String(Date.now())+'-'+Math.random());
@@ -1555,6 +1599,7 @@ async function connectWorkspace(orgId,orgRole='member'){
 
   // v60: migrate once if needed, then use record-level Supabase tables.
   await startNormalizedMode(row?.state || cloudSnapshot(cloudServerVersion));
+  await loadResources();
   await refreshAdminPendingCount();
   if(pendingAccessCount)render();
   clearInterval(pendingAccessPollTimer);
