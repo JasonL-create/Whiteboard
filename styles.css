@@ -686,3 +686,11 @@ body.auth-booting #appShell{visibility:hidden}
 .monthly-report-heading{display:flex;justify-content:space-between;gap:20px;align-items:flex-end}.report-range-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.report-range-controls select,.report-range-controls input{border:1px solid var(--line);border-radius:8px;background:#fff;padding:9px 10px;color:var(--text)}
 .monthly-event-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.monthly-event-title{display:flex;justify-content:space-between;align-items:center}.monthly-event-title h2{margin:0}.monthly-event-title strong{font-size:22px;color:#10243c}.monthly-event-row{width:100%;display:grid;grid-template-columns:1fr auto;gap:16px;border:0;border-top:1px solid var(--line);background:transparent;padding:10px 4px;text-align:left;font:inherit;color:inherit;cursor:pointer}.monthly-event-row:hover{background:var(--accent-soft)}.monthly-event-row span:last-child{color:var(--muted)}
 @media(max-width:900px){.monthly-report-heading{align-items:flex-start;flex-direction:column}.monthly-event-grid{grid-template-columns:1fr}.property-profile{grid-template-columns:1fr 1fr}.property-profile-title{grid-column:1/-1}}
+
+/* v131 compact rental/property data */
+.rental-data-group{border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:14px 0;margin-top:8px;display:grid;gap:10px}
+.rental-data-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.rental-data-group input,.rental-data-group select{height:42px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--text);padding:8px 11px;font:inherit}
+.property-facts-row .compact-field{width:92px}.property-facts-row .sqft-field{width:115px}.property-facts-row .type-field{width:180px}
+.rent-facts-row .money-input{width:170px}
+@media(max-width:700px){.property-facts-row .compact-field,.property-facts-row .sqft-field{width:calc(50% - 5px)}.property-facts-row .type-field{width:100%}.rent-facts-row .money-input{width:100%}}
