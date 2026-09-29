@@ -861,7 +861,8 @@ const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 var cloudReady=false,cloudOrgId=null,cloudUser=null,cloudTimer=null,cloudChannel=null,signupMode=false,applyingRemote=false;
 var cloudPollTimer=null,lastCloudSavedAt=null,lastCloudUpdatedAt=null;
 var cloudServerVersion=0;
-var normalizedReady=false,normalizedSaveTimer=null,normalizedPollTimer=null,normalizedSaving=false,normalizedSavePending=false,normalizedChannel=null,normalizedRefreshTimer=null;
+var normalizedReady=false,normalizedSaveTimer=null,normalizedPollTimer=null,normalizedSaving=false,normalizedSavePending=false,normalizedChannel=null,normalizedProjectRefreshTimer=null,normalizedKeyRefreshTimer=null;
+var pendingRemoteProjectRefresh=false,pendingRemoteKeyRefresh=false;
 var normalizedProjectBaseline=new Map(),normalizedKeyBaseline=new Map(),normalizedLBSet=new Set();
 var propertyIdByNorm=new Map(),normalizedFingerprint='';
 var dirtyKeyIds=new Set();
@@ -1247,6 +1248,22 @@ async function syncNormalizedChanges(){
   }
 }
 
+function localUIIsBusy(domain='projects'){
+  if(document.querySelector('.tf-dialog-backdrop'))return true;
+  if(!document.querySelector('#modal')?.classList.contains('hidden'))return true;
+  const a=document.activeElement;
+  if(!a||a===document.body)return false;
+  if(!a.matches('input,textarea,select,[contenteditable="true"]'))return false;
+  if(domain==='keys')return !!a.closest('.key-row,#keysPage,#rows');
+  return !!a.closest('.row,#rows');
+}
+function flushDeferredRemoteRefreshes(){
+  if(localUIIsBusy('projects')||localUIIsBusy('keys'))return;
+  if(pendingRemoteProjectRefresh){pendingRemoteProjectRefresh=false;scheduleNormalizedRefresh()}
+  if(pendingRemoteKeyRefresh){pendingRemoteKeyRefresh=false;scheduleSharedKeyRefresh()}
+}
+document.addEventListener('focusout',()=>setTimeout(flushDeferredRemoteRefreshes,80),true);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)flushDeferredRemoteRefreshes()});
 async function fetchSharedProjects(){
   const [prjRes,propRes]=await Promise.all([
     scoped(sb.from('projects').select('*').eq('organization_id',cloudOrgId)),
@@ -1284,10 +1301,11 @@ function renderReportsPreservingViewport(){
 async function refreshNormalizedFromServer(showMessage=true){
   if(!normalizedReady)return;
   if(normalizedSaving||normalizedSaveTimer){
-    clearTimeout(normalizedRefreshTimer);
-    normalizedRefreshTimer=setTimeout(()=>refreshNormalizedFromServer(showMessage),250);
+    clearTimeout(normalizedProjectRefreshTimer);
+    normalizedProjectRefreshTimer=setTimeout(()=>refreshNormalizedFromServer(showMessage),250);
     return
   }
+  if(localUIIsBusy('projects')){pendingRemoteProjectRefresh=true;return}
   try{
     const before=stableJSON(data.map(stableProjectShape).sort((a,b)=>a.id.localeCompare(b.id)));
     const fresh=await fetchSharedProjects();
@@ -1304,8 +1322,9 @@ async function refreshNormalizedFromServer(showMessage=true){
   }catch(err){console.error('TurnFlow normalized refresh failed',err)}
 }
 function scheduleNormalizedRefresh(){
-  clearTimeout(normalizedRefreshTimer);
-  normalizedRefreshTimer=setTimeout(()=>refreshNormalizedFromServer(true),120);
+  if(localUIIsBusy('projects')){pendingRemoteProjectRefresh=true;return}
+  clearTimeout(normalizedProjectRefreshTimer);
+  normalizedProjectRefreshTimer=setTimeout(()=>refreshNormalizedFromServer(true),120);
 }
 
 async function reconcileMissingKeysFromRecovery(snapshot,rowsData){
@@ -1372,10 +1391,11 @@ function mapSharedKeys(rowsData){
 }
 async function refreshSharedKeys(showMessage=true){
   if(!normalizedReady||normalizedSaving||dirtyKeyIds.size||normalizedSaveTimer){
-    clearTimeout(normalizedRefreshTimer);
-    normalizedRefreshTimer=setTimeout(()=>refreshSharedKeys(showMessage),250);
+    clearTimeout(normalizedKeyRefreshTimer);
+    normalizedKeyRefreshTimer=setTimeout(()=>refreshSharedKeys(showMessage),250);
     return;
   }
+  if(localUIIsBusy('keys')){pendingRemoteKeyRefresh=true;return}
   try{
     const preserved=document.querySelector('#rows .key-row.open')?.dataset.kid ?? keyOpenId;
     const rowsData=await fetchSharedKeys();
@@ -1401,8 +1421,9 @@ async function refreshSharedKeys(showMessage=true){
   }catch(err){console.error('TurnFlow Key refresh failed',err)}
 }
 function scheduleSharedKeyRefresh(){
-  clearTimeout(normalizedRefreshTimer);
-  normalizedRefreshTimer=setTimeout(()=>refreshSharedKeys(true),120);
+  if(localUIIsBusy('keys')){pendingRemoteKeyRefresh=true;return}
+  clearTimeout(normalizedKeyRefreshTimer);
+  normalizedKeyRefreshTimer=setTimeout(()=>refreshSharedKeys(true),120);
 }
 async function startNormalizedMode(snapshot){
   let rowsData=await fetchNormalized();
@@ -1436,7 +1457,7 @@ async function startNormalizedMode(snapshot){
   // Property changes can affect either display; use the full normalized refresh.
   normalizedChannel.on('postgres_changes',
     {event:'*',schema:'public',table:'properties',filter:`organization_id=eq.${cloudOrgId}`},
-    ()=>scheduleNormalizedRefresh());
+    ()=>{scheduleNormalizedRefresh();scheduleSharedKeyRefresh()});
   normalizedChannel.subscribe(status=>{
     if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'){
       console.error('TurnFlow normalized realtime:',status);
@@ -1606,50 +1627,10 @@ async function connectWorkspace(orgId,orgRole='member'){
     cloudReady=true;
   }
 
-  if(cloudChannel)await sb.removeChannel(cloudChannel);
-  cloudChannel=sb.channel('turnflow-workspace-'+orgId)
-    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'workspace_state'},payload=>{
-      if(String(payload.new?.organization_id)!==String(cloudOrgId))return;
-      if(payload.new?.state?.clientId===TURNFLOW_CLIENT_ID){lastCloudUpdatedAt=payload.new.updated_at||lastCloudUpdatedAt;return;}
-      if(payload.new?.state){
-        lastCloudUpdatedAt=payload.new.updated_at||lastCloudUpdatedAt;
-        cloudServerVersion=Number(payload.new.state.serverVersion||cloudServerVersion||0);
-        applyCloudState(payload.new.state);
-        syncToast('Updated from shared workspace');
-      }
-    })
-    .on('postgres_changes',{event:'INSERT',schema:'public',table:'workspace_state'},payload=>{
-      if(String(payload.new?.organization_id)!==String(cloudOrgId))return;
-      if(payload.new?.state?.clientId===TURNFLOW_CLIENT_ID){lastCloudUpdatedAt=payload.new.updated_at||lastCloudUpdatedAt;return;}
-      if(payload.new?.state){
-        lastCloudUpdatedAt=payload.new.updated_at||lastCloudUpdatedAt;
-        cloudServerVersion=Number(payload.new.state.serverVersion||cloudServerVersion||0);
-        applyCloudState(payload.new.state);
-        syncToast('Updated from shared workspace');
-      }
-    })
-    .subscribe(status=>{
-      if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'){
-        console.error('TurnFlow realtime subscription:',status);
-        syncToast('Realtime connection interrupted');
-      }
-    });
-
-  clearInterval(cloudPollTimer);
-  cloudPollTimer=setInterval(async()=>{
-    if(!cloudReady||!cloudOrgId||document.hidden)return;
-    const {data:latest,error:pollError}=await sb.from('workspace_state')
-      .select('state,updated_at').eq('organization_id',cloudOrgId).maybeSingle();
-    if(pollError||!latest?.state)return;
-    const remoteUpdatedAt=latest.updated_at||'';
-    if(remoteUpdatedAt && remoteUpdatedAt!==lastCloudUpdatedAt){
-      lastCloudUpdatedAt=remoteUpdatedAt;
-      cloudServerVersion=Number(latest.state.serverVersion||cloudServerVersion||0);
-      if(latest.state.clientId===TURNFLOW_CLIENT_ID)return;
-      applyCloudState(latest.state);
-      syncToast('Updated from shared workspace');
-    }
-  },2000);
+  // workspace_state is recovery/bootstrap only. Do not subscribe or poll it:
+  // live collaboration is exclusively record-level normalized tables.
+  if(cloudChannel){await sb.removeChannel(cloudChannel);cloudChannel=null}
+  clearInterval(cloudPollTimer);cloudPollTimer=null;
 
   // v60: migrate once if needed, then use record-level Supabase tables.
   await startNormalizedMode(row?.state || cloudSnapshot(cloudServerVersion));
@@ -1659,9 +1640,6 @@ async function connectWorkspace(orgId,orgRole='member'){
   clearInterval(pendingAccessPollTimer);
   if(['owner','admin'].includes(cloudOrgRole))pendingAccessPollTimer=setInterval(async()=>{const before=pendingAccessCount;await refreshAdminPendingCount();if(before!==pendingAccessCount){renderShell();if(view==='settings')await loadUserAccessAdmin()}},5000);
 
-  // The legacy whole-workspace channel/poll is recovery-only after migration.
-  if(cloudChannel){await sb.removeChannel(cloudChannel);cloudChannel=null}
-  clearInterval(cloudPollTimer);cloudPollTimer=null;
 
   document.querySelector('#authGate').classList.add('hidden');
   document.querySelector('#userChip').textContent=initials(cloudUser.email);
