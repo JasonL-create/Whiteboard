@@ -694,3 +694,41 @@ body.auth-booting #appShell{visibility:hidden}
 .property-facts-row .compact-field{width:92px}.property-facts-row .sqft-field{width:115px}.property-facts-row .type-field{width:180px}
 .rent-facts-row .money-input{width:170px}
 @media(max-width:700px){.property-facts-row .compact-field,.property-facts-row .sqft-field{width:calc(50% - 5px)}.property-facts-row .type-field{width:100%}.rent-facts-row .money-input{width:100%}}
+
+/* v132 — keep rental/property fields visually consistent with the project workflow */
+.rental-data-group{
+  border-top:1px solid var(--line);
+  border-bottom:1px solid var(--line);
+  padding:12px 0;
+  margin-top:0;
+  gap:8px;
+}
+.rental-data-row{gap:10px;}
+.rental-data-group input,
+.rental-data-group select{
+  height:34px;
+  min-height:34px;
+  border:1px solid var(--line);
+  border-radius:6px;
+  background:#fff;
+  color:var(--text);
+  padding:7px 9px;
+  font:inherit;
+  line-height:18px;
+}
+.rental-data-group input::placeholder{color:#7b858d;opacity:1;}
+.rental-data-group .compact-field{width:112px;}
+.rental-data-group .sqft-field{width:140px;}
+.rental-data-group .type-field{width:220px;}
+.rental-data-group .money-input{width:190px;}
+.rental-data-group + .access-group{
+  border-top:0;
+  margin-top:0;
+  padding-top:14px;
+}
+@media(max-width:850px){
+  .rental-data-group .compact-field,
+  .rental-data-group .sqft-field,
+  .rental-data-group .type-field,
+  .rental-data-group .money-input{width:auto;min-width:120px;flex:1 1 140px;}
+}
