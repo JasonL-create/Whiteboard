@@ -680,3 +680,9 @@ body.auth-booting #appShell{visibility:hidden}
 
 /* v129: occupied new properties are intentionally not active listings */
 .lease-status.occupied-na{color:#667085;font-weight:600;}
+/* v130 historical reporting + property data */
+.property-profile{display:grid;grid-template-columns:auto repeat(4,minmax(110px,1fr));gap:12px;align-items:end;padding:16px 0;border-top:1px solid var(--line)}
+.property-profile-title{align-self:center}.property-profile label{font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}.property-profile input,.property-profile select{display:block;width:100%;margin-top:5px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--text);font:inherit;text-transform:none;letter-spacing:0;font-weight:500}
+.monthly-report-heading{display:flex;justify-content:space-between;gap:20px;align-items:flex-end}.report-range-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.report-range-controls select,.report-range-controls input{border:1px solid var(--line);border-radius:8px;background:#fff;padding:9px 10px;color:var(--text)}
+.monthly-event-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.monthly-event-title{display:flex;justify-content:space-between;align-items:center}.monthly-event-title h2{margin:0}.monthly-event-title strong{font-size:22px;color:#10243c}.monthly-event-row{width:100%;display:grid;grid-template-columns:1fr auto;gap:16px;border:0;border-top:1px solid var(--line);background:transparent;padding:10px 4px;text-align:left;font:inherit;color:inherit;cursor:pointer}.monthly-event-row:hover{background:var(--accent-soft)}.monthly-event-row span:last-child{color:var(--muted)}
+@media(max-width:900px){.monthly-report-heading{align-items:flex-start;flex-direction:column}.monthly-event-grid{grid-template-columns:1fr}.property-profile{grid-template-columns:1fr 1fr}.property-profile-title{grid-column:1/-1}}
