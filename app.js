@@ -71,7 +71,9 @@ function statusHTML(x){
    const occupiedUnlisted=lifecycleState(x).enabled&&lifecycleState(x).occupancy==='occupied'&&!get(x,'Listed');
    listingStatus=occupiedUnlisted
     ?`<div class="status-field listing-status-cell"><div class="value"><span class="lease-status occupied-na">N/A — OCCUPIED</span></div></div>`
-    :`<div class="status-field listing-status-cell"><div class="value"><span class="lease-status ${leaseState}">${lease}</span>${pickup?`<span class="key-pickup-inline"> — Key P/U ${short(pickup)}</span>`:''}</div></div>`;
+    :(!get(x,'Listed')
+      ?'<div></div>'
+      :`<div class="status-field listing-status-cell"><div class="value"><span class="lease-status ${leaseState}">${lease}</span>${pickup?`<span class="key-pickup-inline"> — Key P/U ${short(pickup)}</span>`:''}</div></div>`);
    if(get(x,'Signed Lease Received')&&!get(x,'Remove LB'))action='<div class="pickup-lb-pill">PICK UP LB</div>';
  }
  return turnStatus+days+listingStatus+action;
