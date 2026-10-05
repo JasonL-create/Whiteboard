@@ -101,7 +101,7 @@ function renderRowsOnly(){
  if(q){renderUniversalSearch(q);return;}
  if(view==='keys'){renderKeyRowsOnly();return;}
  $('.board-head').style.display='grid';
- let list=data.filter(x=>{if(filter==='turns')return !x.archived&&x.type==='turn';if(filter==='listings')return !x.archived&&x.type==='listing';if(filter==='key-pickup')return !x.archived&&x.type==='listing'&&!!get(x,'Key Pickup');if(filter==='lb-pickup')return !x.archived&&x.type==='listing'&&!!get(x,'Signed Lease Received')&&!get(x,'Remove LB');return filter==='archived'?x.archived:!x.archived&&(filter==='all'||state(x)===filter)});
+ let list=data.filter(x=>{if(filter==='notices')return !x.archived&&x.type==='turn'&&!get(x,'Keys Returned')&&!x.completed;if(filter==='turning')return !x.archived&&x.type==='turn'&&!!get(x,'Keys Returned')&&!x.completed;if(filter==='listings')return !x.archived&&x.type==='listing';if(filter==='new-properties')return !x.archived&&x.type==='listing'&&lifecycleState(x).enabled;if(filter==='losing-properties')return !x.archived&&x.type==='turn'&&lifecycleState(x).enabled;if(filter==='key-pickup')return !x.archived&&x.type==='listing'&&!!get(x,'Key Pickup');if(filter==='lb-pickup')return !x.archived&&x.type==='listing'&&!!get(x,'Signed Lease Received')&&!get(x,'Remove LB');return filter==='archived'?x.archived:!x.archived&&(filter==='all'||state(x)===filter)});
  const sortDate=(x,fieldName)=>(get(x,fieldName)||'9999-12-31');
  const pendingDate=x=>get(x,'Approval Sent')||get(x,'Accepted')||get(x,'Lease Sent')||get(x,'Listed')||'9999-12-31';
  const prioritySort=(matches,dateFn)=>list.sort((a,b)=>{const am=matches(a)?0:1,bm=matches(b)?0:1;if(am!==bm)return am-bm;if(am===0){const d=String(dateFn(a)||'9999-12-31').localeCompare(String(dateFn(b)||'9999-12-31'));if(d)return d;}return a.address.localeCompare(b.address,undefined,{numeric:true,sensitivity:'base'})});
@@ -170,11 +170,17 @@ function renderShell(){
    hero.innerHTML=`<div class="page-title-inline">ARCHIVE</div>${heroSearch}`;
    $('#contextNav').innerHTML='';
  } else if(view==='board'){
+   const noticeCount=active.filter(x=>x.type==='turn'&&!get(x,'Keys Returned')&&!x.completed).length;
+   const turningCount=active.filter(x=>x.type==='turn'&&!!get(x,'Keys Returned')&&!x.completed).length;
+   const listingCount=active.filter(x=>x.type==='listing').length;
+   const newPropertyCount=active.filter(x=>x.type==='listing'&&lifecycleState(x).enabled).length;
+   const losingPropertyCount=active.filter(x=>x.type==='turn'&&lifecycleState(x).enabled).length;
    const keyPickupCount=active.filter(x=>x.type==='listing'&&!!get(x,'Key Pickup')).length;
    const lbPickupCount=active.filter(x=>x.type==='listing'&&!!get(x,'Signed Lease Received')&&!get(x,'Remove LB')).length;
    const completedCount=active.filter(x=>x.completed).length;
    const filterActive=filter!=='all';
-   hero.innerHTML=`<div class="context-left"><button id="newProcessNav" class="hero-add">Start New Project</button><button id="allNav" class="filter-btn ${filter==='all'?'active':''}">All <b>${active.length}</b></button><div class="nav-dropdown"><button class="filter-btn ${filterActive?'active':''}">Filter${filterActive?' · '+({'notice':'Notices','active':'Active Turns','listed':'Listed','pending':'Pending','rented':'Rented','completed':'Completed','key-pickup':'Key Pickup','lb-pickup':'LB Pickup'}[filter]||''):' ▾'}</button><div class="dropdown-panel project-filter-menu"><button data-f="notice">Notices <b>${c('notice')}</b></button><button data-f="active">Active Turns <b>${c('active')}</b></button><button data-f="listed">Listed <b>${c('listed')}</b></button><button data-f="pending">Pending <b>${c('pending')}</b></button><button data-f="rented">Rented <b>${c('rented')}</b></button><button data-f="completed">Completed <b>${completedCount}</b></button><button data-f="key-pickup">Key Pickup <b>${keyPickupCount}</b></button><button data-f="lb-pickup">LB Pickup <b>${lbPickupCount}</b></button></div></div></div>${heroSearch}`;
+   const filterLabels={'notices':'Notices','turning':'Turning','listings':'Listings','new-properties':'New Properties','losing-properties':'Losing Properties','pending':'Pending','rented':'Rented','completed':'Completed','key-pickup':'Key Pickup','lb-pickup':'LB Pickup'};
+   hero.innerHTML=`<div class="context-left"><button id="newProcessNav" class="hero-add">Start New Project</button><button id="allNav" class="filter-btn ${filter==='all'?'active':''}">All <b>${active.length}</b></button><div class="nav-dropdown"><button class="filter-btn ${filterActive?'active':''}">Filter${filterActive?' · '+(filterLabels[filter]||''):' ▾'}</button><div class="dropdown-panel project-filter-menu"><button data-f="notices">Notices <b>${noticeCount}</b></button><button data-f="turning">Turning <b>${turningCount}</b></button><button data-f="listings">Listings <b>${listingCount}</b></button><button data-f="new-properties">New Properties <b>${newPropertyCount}</b></button><button data-f="losing-properties">Losing Properties <b>${losingPropertyCount}</b></button><button data-f="pending">Pending <b>${c('pending')}</b></button><button data-f="rented">Rented <b>${c('rented')}</b></button><button data-f="completed">Completed <b>${completedCount}</b></button><button data-f="key-pickup">Key Pickup <b>${keyPickupCount}</b></button><button data-f="lb-pickup">LB Pickup <b>${lbPickupCount}</b></button></div></div></div>${heroSearch}`;
    $('#contextNav').innerHTML='';
  } else {
    hero.innerHTML=heroSearch;
