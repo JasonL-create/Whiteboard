@@ -1,4 +1,4 @@
-// TurnFlow v143 — restore lifecycle dots in operational status
+// TurnFlow v144 — clarify Expected Move Out milestone
 const TODAY=new Date().toLocaleDateString('en-CA');
 const turnProcess=()=>[
  {note:'',name:'Tenant Gave Notice',kind:'date',value:''},{note:'',name:'Sent Confirmation',kind:'check',value:false},{note:'',name:'Owner Notified',kind:'check',value:false},{note:'',name:'Scheduled Move Out',kind:'date',value:''},{note:'',name:'Keys Returned',kind:'date',value:''},{note:'',name:'Transfer Utilities',kind:'check',value:false},{note:'',name:'MOI',kind:'date',value:''},{note:'',name:'Mailed Disposition',kind:'date',value:''},{note:'',name:'PMI',kind:'date',value:''},{note:'',name:'Listed',kind:'date',value:''}
@@ -56,7 +56,7 @@ function turnMilestone(x){
  if(mailed)return ['MAILED DISP',mailed];
  if(moi)return ['MOI',moi];
  if(keys)return ['KEYS RETURNED',keys];
- if(move)return ['MOVE OUT',move];
+ if(move)return ['EXPECTED MOVE OUT',move];
  if(notice)return ['',notice];
  return ['',''];
 }
