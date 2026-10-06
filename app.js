@@ -1,4 +1,4 @@
-// TurnFlow v140 — clarified two-line Turn Status hierarchy
+// TurnFlow v141 — completed Turn Status retains PMI milestone
 const TODAY=new Date().toLocaleDateString('en-CA');
 const turnProcess=()=>[
  {note:'',name:'Tenant Gave Notice',kind:'date',value:''},{note:'',name:'Sent Confirmation',kind:'check',value:false},{note:'',name:'Owner Notified',kind:'check',value:false},{note:'',name:'Scheduled Move Out',kind:'date',value:''},{note:'',name:'Keys Returned',kind:'date',value:''},{note:'',name:'Transfer Utilities',kind:'check',value:false},{note:'',name:'MOI',kind:'date',value:''},{note:'',name:'Mailed Disposition',kind:'date',value:''},{note:'',name:'PMI',kind:'date',value:''},{note:'',name:'Listed',kind:'date',value:''}
@@ -64,7 +64,7 @@ function operationalStatusHTML(x){
  const life=lifecycleState(x);
  if(x.archived)return statusStack('ARCHIVED','');
  if(x.type==='turn'){
-   const primary=x.completed?'COMPLETE':(get(x,'Keys Returned')?'TURNING':'NOTICE');
+   const primary=x.completed?'COMPLETED':(get(x,'Keys Returned')?'TURNING':'NOTICE');
    const [milestone,date]=turnMilestone(x);
    const primaryLine=primary+(life.enabled?' <span class="status-separator">·</span> LOSING PROP':'');
    const detail=milestone?(date?`${milestone} <span class="status-separator">·</span> ${short(date)}`:milestone):(date?short(date):'');
@@ -78,7 +78,7 @@ function operationalStatusHTML(x){
  }
  const hasTurnHistory=!!(x.sourceTurnId||x.sourceKeysReturned);
  const pmiNeeded=!!get(x,'Listed')&&!get(x,'PMI');
- if(hasTurnHistory||x.completed)return `<div class="status-field operational-status"><div class="value status-primary">COMPLETE</div>${pmiNeeded?'<div class="status-date"><span class="pmi-needed-inline">PMI NEEDED</span></div>':''}</div>`;
+ if(hasTurnHistory||x.completed){const pmi=get(x,'PMI');const detail=pmiNeeded?'<span class="pmi-needed-inline">PMI NEEDED</span>':(pmi?`PMI <span class="status-separator">·</span> ${short(pmi)}`:'');return `<div class="status-field operational-status"><div class="value status-primary">COMPLETED</div>${detail?`<div class="status-date">${detail}</div>`:''}</div>`;}
  if(pmiNeeded)return `<div class="status-field operational-status"><div class="pmi-needed-inline">PMI NEEDED</div></div>`;
  if(get(x,'PMI'))return `<div class="status-field operational-status"><div class="value status-primary">PMI</div><div class="status-date">PMI <span class="status-separator">·</span> ${short(get(x,'PMI'))}</div></div>`;
  return '<div></div>';
