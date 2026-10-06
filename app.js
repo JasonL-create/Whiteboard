@@ -1,4 +1,4 @@
-// TurnFlow v139 — simplified Projects columns; operational state leads Turn Status
+// TurnFlow v140 — clarified two-line Turn Status hierarchy
 const TODAY=new Date().toLocaleDateString('en-CA');
 const turnProcess=()=>[
  {note:'',name:'Tenant Gave Notice',kind:'date',value:''},{note:'',name:'Sent Confirmation',kind:'check',value:false},{note:'',name:'Owner Notified',kind:'check',value:false},{note:'',name:'Scheduled Move Out',kind:'date',value:''},{note:'',name:'Keys Returned',kind:'date',value:''},{note:'',name:'Transfer Utilities',kind:'check',value:false},{note:'',name:'MOI',kind:'date',value:''},{note:'',name:'Mailed Disposition',kind:'date',value:''},{note:'',name:'PMI',kind:'date',value:''},{note:'',name:'Listed',kind:'date',value:''}
@@ -66,19 +66,21 @@ function operationalStatusHTML(x){
  if(x.type==='turn'){
    const primary=x.completed?'COMPLETE':(get(x,'Keys Returned')?'TURNING':'NOTICE');
    const [milestone,date]=turnMilestone(x);
-   const qualifier=life.enabled?'LOSING PROP':milestone;
-   return `<div class="status-field operational-status"><div class="value status-primary">${primary}${qualifier?` <span class="status-separator">·</span> ${qualifier}`:''}</div>${date&&(!life.enabled||!qualifier)?`<div class="status-date">${short(date)}</div>`:(date&&life.enabled&&milestone?`<div class="status-date">${milestone} · ${short(date)}</div>`:'')}</div>`;
+   const primaryLine=primary+(life.enabled?' <span class="status-separator">·</span> LOSING PROP':'');
+   const detail=milestone?(date?`${milestone} <span class="status-separator">·</span> ${short(date)}`:milestone):(date?short(date):'');
+   return `<div class="status-field operational-status"><div class="value status-primary">${primaryLine}</div>${detail?`<div class="status-date">${detail}</div>`:''}</div>`;
  }
  if(life.enabled){
    const pmi=get(x,'PMI');
    const pmiNeeded=life.occupancy==='vacant'&&!pmi;
-   return `<div class="status-field operational-status"><div class="value status-primary">NEW PROP${pmiNeeded?' <span class="status-separator">·</span> <span class="pmi-needed-inline">PMI NEEDED</span>':''}</div>${pmi?`<div class="status-date">PMI · ${short(pmi)}</div>`:''}</div>`;
+   const detail=pmiNeeded?'<span class="pmi-needed-inline">PMI NEEDED</span>':(pmi?`PMI <span class="status-separator">·</span> ${short(pmi)}`:'');
+   return `<div class="status-field operational-status"><div class="value status-primary">NEW PROP</div>${detail?`<div class="status-date">${detail}</div>`:''}</div>`;
  }
  const hasTurnHistory=!!(x.sourceTurnId||x.sourceKeysReturned);
  const pmiNeeded=!!get(x,'Listed')&&!get(x,'PMI');
- if(hasTurnHistory||x.completed)return `<div class="status-field operational-status"><div class="value status-primary">COMPLETE${pmiNeeded?' <span class="status-separator">·</span> <span class="pmi-needed-inline">PMI NEEDED</span>':''}</div></div>`;
+ if(hasTurnHistory||x.completed)return `<div class="status-field operational-status"><div class="value status-primary">COMPLETE</div>${pmiNeeded?'<div class="status-date"><span class="pmi-needed-inline">PMI NEEDED</span></div>':''}</div>`;
  if(pmiNeeded)return `<div class="status-field operational-status"><div class="pmi-needed-inline">PMI NEEDED</div></div>`;
- if(get(x,'PMI'))return statusStack('PMI',get(x,'PMI'));
+ if(get(x,'PMI'))return `<div class="status-field operational-status"><div class="value status-primary">PMI</div><div class="status-date">PMI <span class="status-separator">·</span> ${short(get(x,'PMI'))}</div></div>`;
  return '<div></div>';
 }
 function turnStatusHTML(x){return operationalStatusHTML(x)}
