@@ -1,4 +1,4 @@
-// TurnFlow v142 — listing PMI implies completed turn status
+// TurnFlow v143 — restore lifecycle dots in operational status
 const TODAY=new Date().toLocaleDateString('en-CA');
 const turnProcess=()=>[
  {note:'',name:'Tenant Gave Notice',kind:'date',value:''},{note:'',name:'Sent Confirmation',kind:'check',value:false},{note:'',name:'Owner Notified',kind:'check',value:false},{note:'',name:'Scheduled Move Out',kind:'date',value:''},{note:'',name:'Keys Returned',kind:'date',value:''},{note:'',name:'Transfer Utilities',kind:'check',value:false},{note:'',name:'MOI',kind:'date',value:''},{note:'',name:'Mailed Disposition',kind:'date',value:''},{note:'',name:'PMI',kind:'date',value:''},{note:'',name:'Listed',kind:'date',value:''}
@@ -66,7 +66,7 @@ function operationalStatusHTML(x){
  if(x.type==='turn'){
    const primary=x.completed?'COMPLETED':(get(x,'Keys Returned')?'TURNING':'NOTICE');
    const [milestone,date]=turnMilestone(x);
-   const primaryLine=primary+(life.enabled?' <span class="status-separator">·</span> LOSING PROP':'');
+   const primaryLine=primary+(life.enabled?' <span class="status-separator">·</span> LOSING PROP<span class="portfolio-dot loss status-life-dot" title="Losing property"></span>':'');
    const detail=milestone?(date?`${milestone} <span class="status-separator">·</span> ${short(date)}`:milestone):(date?short(date):'');
    return `<div class="status-field operational-status"><div class="value status-primary">${primaryLine}</div>${detail?`<div class="status-date">${detail}</div>`:''}</div>`;
  }
@@ -74,7 +74,7 @@ function operationalStatusHTML(x){
    const pmi=get(x,'PMI');
    const pmiNeeded=life.occupancy==='vacant'&&!pmi;
    const detail=pmiNeeded?'<span class="pmi-needed-inline">PMI NEEDED</span>':(pmi?`PMI <span class="status-separator">·</span> ${short(pmi)}`:'');
-   return `<div class="status-field operational-status"><div class="value status-primary">NEW PROP</div>${detail?`<div class="status-date">${detail}</div>`:''}</div>`;
+   return `<div class="status-field operational-status"><div class="value status-primary">NEW PROP<span class="portfolio-dot gain status-life-dot" title="New property"></span></div>${detail?`<div class="status-date">${detail}</div>`:''}</div>`;
  }
  const hasTurnHistory=!!(x.sourceTurnId||x.sourceKeysReturned);
  const pmi=get(x,'PMI');
