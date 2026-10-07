@@ -821,3 +821,8 @@ body.auth-booting #appShell{visibility:hidden}
 .listing-support{font-size:13px!important;font-weight:400!important;color:var(--text)!important;margin-top:4px!important}
 .listing-support .pmi-needed-inline{font-size:12px;font-weight:800;color:var(--danger)}
 .key-pickup-inline{display:block;margin-top:4px;color:var(--text);font-size:13px;font-weight:400}
+
+/* v147: one typography system for Projects status cells */
+.status-primary,.listing-primary{font-size:15px!important;font-weight:800!important;letter-spacing:.025em!important;text-transform:uppercase;line-height:1.2}
+.status-detail,.operational-status .status-date,.listing-status-cell .listing-support{font-size:14px!important;font-weight:400!important;letter-spacing:0!important;line-height:1.25;color:var(--text)!important;margin-top:4px!important;text-transform:none!important;white-space:nowrap}
+.status-detail .pmi-needed-inline,.listing-support .pmi-needed-inline{font-size:14px!important;font-weight:800!important;letter-spacing:0!important;color:var(--danger)!important;text-transform:uppercase!important}

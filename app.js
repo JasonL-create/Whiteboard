@@ -53,10 +53,10 @@ function listingTypeClass(x){if(x.completed)return 'listing-completed';if(x.arch
 function statusStack(label,dateValue,extraClass=''){return `<div class="status-field ${extraClass}"><div class="value status-primary">${label}</div>${dateValue?`<div class="status-date">${short(dateValue)}</div>`:''}</div>`}
 function turnMilestone(x){
  const notice=get(x,'Tenant Gave Notice'),move=get(x,'Scheduled Move Out'),keys=get(x,'Keys Returned'),moi=get(x,'MOI'),mailed=get(x,'Mailed Disposition');
- if(mailed)return ['MAILED DISP',mailed];
+ if(mailed)return ['Mailed Dispo',mailed];
  if(moi)return ['MOI',moi];
- if(keys)return ['KEYS RETURNED',keys];
- if(move)return ['EXPECTED MOVE OUT',move];
+ if(keys)return ['Keys Returned',keys];
+ if(move)return ['Expected Move Out',move];
  if(notice)return ['',notice];
  return ['',''];
 }
@@ -68,7 +68,7 @@ function operationalStatusHTML(x){
    const [milestone,date]=turnMilestone(x);
    const primaryLine=primary+(life.enabled?' <span class="status-separator">·</span> LOSING PROP<span class="portfolio-dot loss status-life-dot" title="Losing property"></span>':'');
    const detail=x.completed?'':(milestone?(date?`${milestone} <span class="status-separator">·</span> ${short(date)}`:milestone):(date?short(date):''));
-   return `<div class="status-field operational-status"><div class="value status-primary">${primaryLine}</div>${detail?`<div class="status-date">${detail}</div>`:''}</div>`;
+   return `<div class="status-field operational-status"><div class="value status-primary">${primaryLine}</div>${detail?`<div class="status-detail">${detail}</div>`:''}</div>`;
  }
  if(life.enabled){
    return `<div class="status-field operational-status"><div class="value status-primary">NEW PROP<span class="portfolio-dot gain status-life-dot" title="New property"></span></div></div>`;
@@ -96,8 +96,8 @@ function statusHTML(x){
    else if(listed){stage='LISTED';stageClass='listed';stageDate=listed;}
    else if(pmi){stage='READY TO LIST';stageClass='ready-to-list';}
    else {stage='PMI NEEDED';stageClass='pmi-needed';}
-   const warning=(!occupiedUnlisted&&pmiNeeded&&stage!=='PMI NEEDED')?`<div class="status-date listing-support"><span class="pmi-needed-inline">PMI NEEDED</span></div>`:'';
-   const pickupText=pickup?`<div class="status-date listing-support">Key P/U <span class="status-separator">·</span> ${short(pickup)}</div>`:'';
+   const warning=(!occupiedUnlisted&&pmiNeeded&&stage!=='PMI NEEDED')?`<div class="status-detail listing-support"><span class="pmi-needed-inline">PMI NEEDED</span></div>`:'';
+   const pickupText=pickup?`<div class="status-detail listing-support">Key P/U <span class="status-separator">·</span> ${short(pickup)}</div>`:'';
    listingStatus=`<div class="status-field listing-status-cell"><div class="value status-primary listing-primary"><span class="lease-status ${stageClass}">${stage}${stageDate?` <span class="status-separator">·</span> ${short(stageDate)}`:''}</span></div>${warning}${pickupText}</div>`;
    if(get(x,'Signed Lease Received')&&!get(x,'Remove LB'))action='<div class="pickup-lb-pill">PICK UP LB</div>';
  }
