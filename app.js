@@ -64,25 +64,18 @@ function operationalStatusHTML(x){
  const life=lifecycleState(x);
  if(x.archived)return statusStack('ARCHIVED','');
  if(x.type==='turn'){
-   const primary=x.completed?'COMPLETED':(get(x,'Keys Returned')?'TURNING':'NOTICE');
+   const primary=x.completed?'TURN COMPLETED':(get(x,'Keys Returned')?'TURNING':'NOTICE');
    const [milestone,date]=turnMilestone(x);
    const primaryLine=primary+(life.enabled?' <span class="status-separator">·</span> LOSING PROP<span class="portfolio-dot loss status-life-dot" title="Losing property"></span>':'');
-   const detail=milestone?(date?`${milestone} <span class="status-separator">·</span> ${short(date)}`:milestone):(date?short(date):'');
+   const detail=x.completed?'':(milestone?(date?`${milestone} <span class="status-separator">·</span> ${short(date)}`:milestone):(date?short(date):''));
    return `<div class="status-field operational-status"><div class="value status-primary">${primaryLine}</div>${detail?`<div class="status-date">${detail}</div>`:''}</div>`;
  }
  if(life.enabled){
-   const pmi=get(x,'PMI');
-   const pmiNeeded=life.occupancy==='vacant'&&!pmi;
-   const detail=pmiNeeded?'<span class="pmi-needed-inline">PMI NEEDED</span>':(pmi?`PMI <span class="status-separator">·</span> ${short(pmi)}`:'');
-   return `<div class="status-field operational-status"><div class="value status-primary">NEW PROP<span class="portfolio-dot gain status-life-dot" title="New property"></span></div>${detail?`<div class="status-date">${detail}</div>`:''}</div>`;
+   return `<div class="status-field operational-status"><div class="value status-primary">NEW PROP<span class="portfolio-dot gain status-life-dot" title="New property"></span></div></div>`;
  }
  const hasTurnHistory=!!(x.sourceTurnId||x.sourceKeysReturned);
  const pmi=get(x,'PMI');
- const pmiNeeded=!!get(x,'Listed')&&!pmi;
- // For a normal listing, a completed PMI is the clearest evidence that the turn phase is complete.
- // This also covers older listings whose source-turn linkage was not retained in normalized data.
- if(hasTurnHistory||x.completed||pmi){const detail=pmiNeeded?'<span class="pmi-needed-inline">PMI NEEDED</span>':(pmi?`PMI <span class="status-separator">·</span> ${short(pmi)}`:'');return `<div class="status-field operational-status"><div class="value status-primary">COMPLETED</div>${detail?`<div class="status-date">${detail}</div>`:''}</div>`;}
- if(pmiNeeded)return `<div class="status-field operational-status"><div class="pmi-needed-inline">PMI NEEDED</div></div>`;
+ if(hasTurnHistory||x.completed||pmi)return `<div class="status-field operational-status"><div class="value status-primary">TURN COMPLETED</div></div>`;
  return '<div></div>';
 }
 function turnStatusHTML(x){return operationalStatusHTML(x)}
@@ -95,11 +88,17 @@ function statusHTML(x){
  if(x.type==='listing'){
    const leaseState=state(x),lease=leaseState.toUpperCase(),pickup=get(x,'Key Pickup');
    const occupiedUnlisted=lifecycleState(x).enabled&&lifecycleState(x).occupancy==='occupied'&&!get(x,'Listed');
-   listingStatus=occupiedUnlisted
-    ?`<div class="status-field listing-status-cell"><div class="value"><span class="lease-status occupied-na">N/A — OCCUPIED</span></div></div>`
-    :(!get(x,'Listed')
-      ?'<div></div>'
-      :`<div class="status-field listing-status-cell"><div class="value"><span class="lease-status ${leaseState}">${lease}</span>${pickup?`<span class="key-pickup-inline"> — Key P/U ${short(pickup)}</span>`:''}</div></div>`);
+   const pmi=get(x,'PMI'),listed=get(x,'Listed'),pmiNeeded=!pmi;
+   let stage='',stageClass=leaseState,stageDate='';
+   if(occupiedUnlisted){stage='N/A — OCCUPIED';stageClass='occupied-na';}
+   else if(get(x,'Signed Lease Received')){stage='RENTED';stageClass='rented';stageDate=get(x,'Signed Lease Received');}
+   else if(get(x,'Approval Sent')||get(x,'Accepted')||get(x,'Lease Sent')){stage='PENDING';stageClass='pending';stageDate=get(x,'Approval Sent')||get(x,'Accepted')||get(x,'Lease Sent');}
+   else if(listed){stage='LISTED';stageClass='listed';stageDate=listed;}
+   else if(pmi){stage='READY TO LIST';stageClass='ready-to-list';}
+   else {stage='PMI NEEDED';stageClass='pmi-needed';}
+   const warning=(!occupiedUnlisted&&pmiNeeded&&stage!=='PMI NEEDED')?`<div class="status-date"><span class="pmi-needed-inline">PMI NEEDED</span></div>`:'';
+   const pickupText=pickup?`<span class="key-pickup-inline"> — Key P/U ${short(pickup)}</span>`:'';
+   listingStatus=`<div class="status-field listing-status-cell"><div class="value"><span class="lease-status ${stageClass}">${stage}${stageDate?` <span class="status-separator">·</span> ${short(stageDate)}`:''}</span>${pickupText}</div>${warning}</div>`;
    if(get(x,'Signed Lease Received')&&!get(x,'Remove LB'))action='<div class="pickup-lb-pill">PICK UP LB</div>';
  }
  return turnStatus+listingStatus+days+action;
