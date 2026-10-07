@@ -806,3 +806,18 @@ body.auth-booting #appShell{visibility:hidden}
 
 /* v143: lifecycle markers in Turn Status */
 .status-life-dot{margin-left:6px;vertical-align:1px}
+
+
+/* v146: consistent status hierarchy across Projects */
+.status-primary,.listing-primary{font-size:14px!important;font-weight:800!important;letter-spacing:.025em!important;text-transform:uppercase;line-height:1.2}
+.operational-status .status-primary{color:var(--muted)!important}
+.listing-status-cell .value{margin-top:0}
+.listing-status-cell .lease-status{font-size:14px;font-weight:800;letter-spacing:.025em;text-transform:uppercase}
+.listing-status-cell .lease-status.pending{color:var(--pending);font-weight:800}
+.listing-status-cell .lease-status.rented{color:var(--rented);font-weight:800}
+.listing-status-cell .lease-status.listed,.listing-status-cell .lease-status.ready-to-list{color:var(--text);font-weight:800}
+.listing-status-cell .lease-status.pmi-needed{color:var(--danger);font-weight:800}
+.listing-status-cell .lease-status.occupied-na{font-weight:800}
+.listing-support{font-size:13px!important;font-weight:400!important;color:var(--text)!important;margin-top:4px!important}
+.listing-support .pmi-needed-inline{font-size:12px;font-weight:800;color:var(--danger)}
+.key-pickup-inline{display:block;margin-top:4px;color:var(--text);font-size:13px;font-weight:400}
