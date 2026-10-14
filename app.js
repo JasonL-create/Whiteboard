@@ -41,8 +41,8 @@ let resourceSections=[],resources=[];
 const get=(x,n)=>x.process.find(p=>p.name===n)?.value||'';const short=d=>d?d.slice(5).replace('-','/'):'—';
 function diffDays(start,end=TODAY,inclusive=false){if(!start)return 0;const n=Math.round((Date.parse(end)-Date.parse(start))/86400000);return Math.max(inclusive?1:0,n+(inclusive?1:0))}
 function state(x){if(x.archived)return'archived';if(x.completed)return'completed';if(x.type==='turn'){return get(x,'Keys Returned')?'active':'notice';}if(get(x,'Signed Lease Received'))return'rented';if(get(x,'Approval Sent')||get(x,'Accepted')||get(x,'Lease Sent'))return'pending';return'listed'}
-function turnDays(x){const k=get(x,'Keys Returned');if(!k)return 0;return diffDays(k,get(x,'Mailed Disposition')||TODAY,true)}
-function listingDays(x){const d=get(x,'Listed');if(!d)return 0;return diffDays(d,get(x,'Signed Lease Received')||TODAY,false)}
+function turnDays(x){const k=get(x,'Keys Returned');if(!k)return 0;return diffDays(k,get(x,'Mailed Disposition')||(x.archived?x.archivedAt:null)||TODAY,true)}
+function listingDays(x){const d=get(x,'Listed');if(!d)return 0;return diffDays(d,get(x,'Signed Lease Received')||(x.archived?x.archivedAt:null)||TODAY,false)}
 function totalFromKeys(x){return x.sourceKeysReturned?diffDays(x.sourceKeysReturned,get(x,'Key Pickup')||TODAY,false):null}
 function save(){localStorage.setItem('whiteboardData',JSON.stringify(data));if(normalizedReady){localEditGeneration++;scheduleNormalizedSave()}else scheduleCloudSave()}
 function field(l,v){return `<div class="status-field"><div class="label">${l}</div><div class="value">${v}</div></div>`}
@@ -62,7 +62,6 @@ function turnMilestone(x){
 }
 function operationalStatusHTML(x){
  const life=lifecycleState(x);
- if(x.archived)return statusStack('ARCHIVED','');
  if(x.type==='turn'){
    const primary=x.completed?'TURN COMPLETED':(get(x,'Keys Returned')?'TURNING':'NOTICE');
    const [milestone,date]=turnMilestone(x);
@@ -80,13 +79,12 @@ function operationalStatusHTML(x){
 }
 function turnStatusHTML(x){return operationalStatusHTML(x)}
 function statusHTML(x){
- if(x.archived)return statusStack('ARCHIVED','')+'<div></div><div></div><div></div>';
  const turnStatus=operationalStatusHTML(x);
  const listDayCount=x.type==='listing'?listingDays(x):0;
  const days=x.type==='turn'&&get(x,'Keys Returned')?`<div class="status-field"><div class="value turn-days">${turnDays(x)} / 31</div></div>`:(x.type==='listing'&&listDayCount>0?`<div class="status-field"><div class="value listing-days">${listDayCount} DAYS</div></div>`:'<div></div>');
  let listingStatus='<div></div>',action='<div></div>';
  if(x.type==='listing'){
-   const leaseState=state(x),lease=leaseState.toUpperCase(),pickup=get(x,'Key Pickup');
+   const leaseState=get(x,'Signed Lease Received')?'rented':(get(x,'Approval Sent')||get(x,'Accepted')||get(x,'Lease Sent'))?'pending':'listed',pickup=get(x,'Key Pickup');
    const occupiedUnlisted=lifecycleState(x).enabled&&lifecycleState(x).occupancy==='occupied'&&!get(x,'Listed');
    const pmi=get(x,'PMI'),listed=get(x,'Listed'),pmiNeeded=!pmi;
    let stage='',stageClass=leaseState,stageDate='';
