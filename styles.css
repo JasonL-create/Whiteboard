@@ -826,3 +826,16 @@ body.auth-booting #appShell{visibility:hidden}
 .status-primary,.listing-primary{font-size:15px!important;font-weight:800!important;letter-spacing:.025em!important;text-transform:uppercase;line-height:1.2}
 .status-detail,.operational-status .status-date,.listing-status-cell .listing-support{font-size:14px!important;font-weight:400!important;letter-spacing:0!important;line-height:1.25;color:var(--text)!important;margin-top:4px!important;text-transform:none!important;white-space:nowrap}
 .status-detail .pmi-needed-inline,.listing-support .pmi-needed-inline{font-size:14px!important;font-weight:800!important;letter-spacing:0!important;color:var(--danger)!important;text-transform:uppercase!important}
+
+/* Shared collapsible report sections — all three Reports tabs. */
+.report-group-controls{display:flex;justify-content:flex-end;gap:8px;margin:0 0 12px}
+.report-group-controls button{font-size:12px;padding:7px 12px}
+.report-collapsible{min-width:0;align-self:start}
+.report-group-summary{cursor:pointer;list-style:none;user-select:none;gap:12px}
+.report-group-summary::-webkit-details-marker{display:none}
+.report-group-summary:focus-visible{outline:2px solid var(--accent);outline-offset:4px;border-radius:4px}
+.report-group-end{display:flex;align-items:center;gap:14px}
+.report-group-chevron{font-size:22px;line-height:1;color:var(--muted);transition:transform .15s ease}
+.report-collapsible[open] .report-group-chevron{transform:rotate(180deg)}
+.report-collapsible:not([open]) .monthly-event-title{margin-bottom:0}
+.report-collapsible[open] .monthly-event-title{margin-bottom:4px}

@@ -721,9 +721,17 @@ function exportTurnFlowCsv(from,to){
  data.forEach(x=>{const dates=[get(x,'Tenant Gave Notice'),get(x,'Signed Lease Received'),get(x,'Listed'),lifecycleState(x).date,x.createdAt].filter(Boolean).map(v=>String(v).slice(0,10));if(!dates.some(d=>d>=from&&d<=to))return;lines.push([x.address,locationName(x.locationId),x.type,x.createdAt?String(x.createdAt).slice(0,10):'',get(x,'Tenant Gave Notice'),get(x,'Keys Returned'),get(x,'Mailed Disposition'),get(x,'PMI'),get(x,'Listed'),get(x,'Signed Lease Received'),get(x,'Listed')&&get(x,'Signed Lease Received')?diffDays(get(x,'Listed'),get(x,'Signed Lease Received')):'',x.type==='listing'&&lifecycleState(x).enabled?lifecycleState(x).date:'',x.type==='turn'&&lifecycleState(x).enabled?lifecycleState(x).date:'',x.propertyMeta?.beds??'',x.propertyMeta?.baths??'',x.propertyMeta?.sqft??'',x.propertyMeta?.propertyType||'',x.price||'',x.securityDeposit||'',x.rentedPrice||''])});
  const blob=new Blob([lines.map(r=>r.map(csvCell).join(',')).join('\n')],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`turnflow-data-${from}-to-${to}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 }
+// Per-tab, per-category presentation state; never saved to the shared database.
+const reportOpenGroups={live:new Set(),inventory:new Set(),monthly:new Set()};
+function reportCollapsible(title,inner,count){
+ const key=encodeURIComponent(title);
+ const opened=reportOpenGroups[reportTab].has(title)?' open':'';
+ return `<details class="report-detail monthly-event-group report-collapsible" data-report-group="${key}"${opened}><summary class="monthly-event-title report-group-summary"><h2>${title}</h2><span class="report-group-end"><strong>${count}</strong><span class="report-group-chevron" aria-hidden="true">⌄</span></span></summary>${inner}</details>`;
+}
+function reportGroupControls(){return `<div class="report-group-controls"><button type="button" class="action-secondary" data-report-expand="all">Expand All</button><button type="button" class="action-secondary" data-report-expand="none">Collapse All</button></div>`;}
 function reportCategory(title,items){
  const sorted=items.slice().sort((a,b)=>String(a.address).localeCompare(String(b.address),undefined,{numeric:true}));
- return `<section class="report-detail monthly-event-group"><div class="monthly-event-title"><h2>${title}</h2><strong>${items.length}</strong></div>${sorted.length?`<div class="monthly-event-list">${sorted.map(x=>`<button class="monthly-event-row" ${x.targetType&&x.targetId?`data-report-target="${escapeHTML(x.targetType)}" data-report-id="${escapeHTML(String(x.targetId))}"`:''}><span>${escapeHTML(x.address)}</span><span>${escapeHTML(x.detail||'')}</span></button>`).join('')}</div>`:'<div class="empty">None</div>'}</section>`;
+ return reportCollapsible(title,`${sorted.length?`<div class="monthly-event-list">${sorted.map(x=>`<button class="monthly-event-row" ${x.targetType&&x.targetId?`data-report-target="${escapeHTML(x.targetType)}" data-report-id="${escapeHTML(String(x.targetId))}"`:''}><span>${escapeHTML(x.address)}</span><span>${escapeHTML(x.detail||'')}</span></button>`).join('')}</div>`:'<div class="empty">None</div>'}`,items.length);
 }
 function renderReports(){
  view='reports';renderShell();$('.board-head').style.display='none';
@@ -747,7 +755,7 @@ function renderReports(){
     ['LB CHECKED OUT',kr(lbOut,k=>`LB #${k.lb.number}`)],
     ['MISSING LB',kr(lbMissing,k=>`LB #${k.lb.number}`)]
    ];
-   rows.innerHTML=`<div class="report-page"><div class="report-heading"><h1>Inventory</h1><p>Live key and lockbox inventory.</p></div><div class="monthly-event-grid">${inventoryGroups.map(([title,items])=>reportCategory(title,items)).join('')}</div></div>`;
+   rows.innerHTML=`<div class="report-page"><div class="report-heading"><h1>Inventory</h1><p>Live key and lockbox inventory.</p></div>${reportGroupControls()}<div class="monthly-event-grid">${inventoryGroups.map(([title,items])=>reportCategory(title,items)).join('')}</div></div>`;
  } else if(reportTab==='monthly'){
    const today=new Date();
    const iso=d=>d.toLocaleDateString('en-CA');
@@ -765,8 +773,8 @@ function renderReports(){
     ['NOTICES RECEIVED',notices,'Tenant Gave Notice'],['LEASES SIGNED',leases,'Signed Lease Received'],['PROPERTIES LISTED',listedMonth,'Listed'],['PROPERTIES GAINED',newMonth,'__gain'],['PROPERTIES LOST',lostMonth,'__loss']
    ];
    const label=reportRange==='month'?today.toLocaleDateString('en-US',{month:'long',year:'numeric'}):reportRange==='year'?String(today.getFullYear()):reportRange==='all'?'All Time':`${short(reportFrom)} – ${short(reportTo)}`;
-   const groupHTML=groups.map(([title,arr,dateKey])=>`<section class="report-detail monthly-event-group"><div class="monthly-event-title"><h2>${title}</h2><strong>${arr.length}</strong></div>${arr.length?`<div class="monthly-event-list">${arr.slice().sort((a,b)=>a.address.localeCompare(b.address)).map(x=>{const d=dateKey==='__gain'||dateKey==='__loss'?lifecycleState(x).date:get(x,dateKey);return `<button class="monthly-event-row" data-report-target="project" data-report-id="${x.id}"><span>${escapeHTML(x.address)}</span><span>${short(d)}</span></button>`}).join('')}</div>`:'<div class="empty">No records in this period.</div>'}</section>`).join('');
-   rows.innerHTML=`<div class="report-page"><div class="report-heading monthly-report-heading"><div><h1>${label}</h1><p>Activity is based on the actual workflow event date for each property.</p></div><div class="report-range-controls"><select id="reportRange"><option value="month" ${reportRange==='month'?'selected':''}>This Month</option><option value="year" ${reportRange==='year'?'selected':''}>This Year</option><option value="all" ${reportRange==='all'?'selected':''}>All Time</option><option value="custom" ${reportRange==='custom'?'selected':''}>Custom</option></select><input id="reportFrom" type="date" value="${reportFrom}" ${reportRange==='custom'?'':'disabled'}><span>to</span><input id="reportTo" type="date" value="${reportTo}" ${reportRange==='custom'?'':'disabled'}><button id="exportReportCsv" class="action-secondary">Export CSV</button></div></div><div class="monthly-event-grid">${groupHTML}</div></div>`;
+   const groupHTML=groups.map(([title,arr,dateKey])=>reportCollapsible(title,arr.length?`<div class="monthly-event-list">${arr.slice().sort((a,b)=>a.address.localeCompare(b.address)).map(x=>{const d=dateKey==='__gain'||dateKey==='__loss'?lifecycleState(x).date:get(x,dateKey);return `<button class="monthly-event-row" data-report-target="project" data-report-id="${x.id}"><span>${escapeHTML(x.address)}</span><span>${short(d)}</span></button>`}).join('')}</div>`:'<div class="empty">No records in this period.</div>',arr.length)).join('');
+   rows.innerHTML=`<div class="report-page"><div class="report-heading monthly-report-heading"><div><h1>${label}</h1><p>Activity is based on the actual workflow event date for each property.</p></div><div class="report-range-controls"><select id="reportRange"><option value="month" ${reportRange==='month'?'selected':''}>This Month</option><option value="year" ${reportRange==='year'?'selected':''}>This Year</option><option value="all" ${reportRange==='all'?'selected':''}>All Time</option><option value="custom" ${reportRange==='custom'?'selected':''}>Custom</option></select><input id="reportFrom" type="date" value="${reportFrom}" ${reportRange==='custom'?'':'disabled'}><span>to</span><input id="reportTo" type="date" value="${reportTo}" ${reportRange==='custom'?'':'disabled'}><button id="exportReportCsv" class="action-secondary">Export CSV</button></div></div>${reportGroupControls()}<div class="monthly-event-grid">${groupHTML}</div></div>`;
    $('#reportRange').onchange=e=>{reportRange=e.target.value;if(reportRange==='custom'){reportFrom=iso(new Date(today.getFullYear(),today.getMonth(),1));reportTo=iso(today)}renderReports()};
    $('#reportFrom').onchange=e=>{reportFrom=e.target.value;reportRange='custom';renderReports()};$('#reportTo').onchange=e=>{reportTo=e.target.value;reportRange='custom';renderReports()};
    $('#exportReportCsv').onclick=()=>exportTurnFlowCsv(reportFrom,reportTo);
@@ -782,8 +790,16 @@ function renderReports(){
     ['NEW PROPERTIES',projectItems(newProperties,x=>`Management Start · ${short(lifecycleState(x).date)||'—'}`)],
     ['LOST PROPERTIES',projectItems(lostProperties,x=>`Termination · ${short(lifecycleState(x).date)||'—'}`)]
    ];
-   rows.innerHTML=`<div class="report-page"><div class="report-heading"><h1>Live Operations</h1><p>Current TurnFlow workload by property.</p></div><div class="monthly-event-grid">${groups.map(([title,items])=>reportCategory(title,items)).join('')}</div></div>`;
+   rows.innerHTML=`<div class="report-page"><div class="report-heading"><h1>Live Operations</h1><p>Current TurnFlow workload by property.</p></div>${reportGroupControls()}<div class="monthly-event-grid">${groups.map(([title,items])=>reportCategory(title,items)).join('')}</div></div>`;
  }
+ rows.querySelectorAll('[data-report-group]').forEach(el=>el.addEventListener('toggle',()=>{
+   const title=decodeURIComponent(el.dataset.reportGroup);const open=reportOpenGroups[reportTab];
+   if(el.open)open.add(title);else open.delete(title);
+ }));
+ rows.querySelectorAll('[data-report-expand]').forEach(btn=>btn.onclick=()=>{
+   const expand=btn.dataset.reportExpand==='all';
+   rows.querySelectorAll('[data-report-group]').forEach(el=>{el.open=expand;});
+ });
  rows.querySelectorAll('[data-report-drill]').forEach(b=>b.onclick=()=>{const k=b.dataset.reportDrill;if(!k)return;reportDrill=reportDrill===k?'':k;renderReports()});
  rows.querySelectorAll('[data-report-target]').forEach(b=>b.onclick=()=>openReportRecord(b.dataset.reportTarget,b.dataset.reportId));
 }
