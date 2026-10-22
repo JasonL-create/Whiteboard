@@ -721,6 +721,10 @@ function exportTurnFlowCsv(from,to){
  data.forEach(x=>{const dates=[get(x,'Tenant Gave Notice'),get(x,'Signed Lease Received'),get(x,'Listed'),lifecycleState(x).date,x.createdAt].filter(Boolean).map(v=>String(v).slice(0,10));if(!dates.some(d=>d>=from&&d<=to))return;lines.push([x.address,locationName(x.locationId),x.type,x.createdAt?String(x.createdAt).slice(0,10):'',get(x,'Tenant Gave Notice'),get(x,'Keys Returned'),get(x,'Mailed Disposition'),get(x,'PMI'),get(x,'Listed'),get(x,'Signed Lease Received'),get(x,'Listed')&&get(x,'Signed Lease Received')?diffDays(get(x,'Listed'),get(x,'Signed Lease Received')):'',x.type==='listing'&&lifecycleState(x).enabled?lifecycleState(x).date:'',x.type==='turn'&&lifecycleState(x).enabled?lifecycleState(x).date:'',x.propertyMeta?.beds??'',x.propertyMeta?.baths??'',x.propertyMeta?.sqft??'',x.propertyMeta?.propertyType||'',x.price||'',x.securityDeposit||'',x.rentedPrice||''])});
  const blob=new Blob([lines.map(r=>r.map(csvCell).join(',')).join('\n')],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`turnflow-data-${from}-to-${to}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 }
+function reportCategory(title,items){
+ const sorted=items.slice().sort((a,b)=>String(a.address).localeCompare(String(b.address),undefined,{numeric:true}));
+ return `<section class="report-detail monthly-event-group"><div class="monthly-event-title"><h2>${title}</h2><strong>${items.length}</strong></div>${sorted.length?`<div class="monthly-event-list">${sorted.map(x=>`<button class="monthly-event-row" ${x.targetType&&x.targetId?`data-report-target="${escapeHTML(x.targetType)}" data-report-id="${escapeHTML(String(x.targetId))}"`:''}><span>${escapeHTML(x.address)}</span><span>${escapeHTML(x.detail||'')}</span></button>`).join('')}</div>`:'<div class="empty">None</div>'}</section>`;
+}
 function renderReports(){
  view='reports';renderShell();$('.board-head').style.display='none';
  const active=data.filter(x=>!x.archived),turns=active.filter(x=>x.type==='turn'),listings=active.filter(x=>x.type==='listing');
@@ -732,20 +736,18 @@ function renderReports(){
  if(reportTab==='inventory'){
    const keyAvailable=keys.filter(k=>!k.address),keyOut=keys.filter(k=>!!k.keyOut),keyMissing=keys.filter(k=>k.keyMissing);
    const used=usedLBs(),lbAvailable=lbInventory.filter(n=>!used.has(String(n))),lbMissing=keys.filter(k=>k.lb&&k.lbMissing),lbOut=keys.filter(k=>k.lb);
-   const metrics=[['KEY TAGS',keys.length,'allkeys'],['AVAILABLE KEYS',keyAvailable.length,'availablekeys'],['KEYS CHECKED OUT',keyOut.length,'keyout'],['MISSING KEYS',keyMissing.length,'missingkeys'],['LOCKBOXES',lbInventory.length,'alllb'],['AVAILABLE LB',lbAvailable.length,'availablelb'],['LB CHECKED OUT',lbOut.length,'lbout'],['MISSING LB',lbMissing.length,'missinglb']];
-   let detail='';
-   if(reportDrill){let title='',items=[];const kr=(arr,fn)=>arr.map(k=>({address:k.address||`Tag #${k.tag}`,detail:fn(k),targetType:'key',targetId:k.id}));
-    if(reportDrill==='allkeys'){title='All Key Tags';items=kr(keys,k=>`Tag #${k.tag}`)}
-    if(reportDrill==='availablekeys'){title='Available Key Tags';items=kr(keyAvailable,k=>'')}
-    if(reportDrill==='keyout'){title='Keys Checked Out';items=kr(keyOut,k=>`Tag #${k.tag} · ${k.keyOut?.to||''}`)}
-    if(reportDrill==='missingkeys'){title='Missing Keys';items=kr(keyMissing,k=>`Tag #${k.tag}`)}
-    if(reportDrill==='alllb'){title='All Lockboxes';items=lbInventory.map(n=>{const k=keys.find(v=>v.lb&&String(v.lb.number)===String(n));return {address:`LB #${n}`,detail:k?`Checked out · ${k.address||`Tag #${k.tag}`}`:'Available',...(k?{targetType:'key',targetId:k.id}:{})}})}
-    if(reportDrill==='availablelb'){title='Available Lockboxes';items=lbAvailable.map(n=>({address:`LB #${n}`,detail:'Available'}))}
-    if(reportDrill==='lbout'){title='Lockboxes Checked Out';items=kr(lbOut,k=>`LB #${k.lb.number}`)}
-    if(reportDrill==='missinglb'){title='Missing Lockboxes';items=kr(lbMissing,k=>`LB #${k.lb.number}`)}
-    detail=reportRows(title,items);
-   }
-   rows.innerHTML=`<div class="report-page"><div class="report-heading"><h1>Inventory</h1><p>Live key and lockbox inventory.</p></div><div class="report-metrics">${metrics.map(m=>reportMetric(...m)).join('')}</div>${detail}</div>`;
+   const kr=(arr,fn)=>arr.map(k=>({address:k.address||`Tag #${k.tag}`,detail:fn(k),targetType:'key',targetId:k.id}));
+   const inventoryGroups=[
+    ['KEY TAGS',kr(keys,k=>`Tag #${k.tag}`)],
+    ['AVAILABLE KEYS',kr(keyAvailable,k=>`Tag #${k.tag}`)],
+    ['KEYS CHECKED OUT',kr(keyOut,k=>`Tag #${k.tag} · ${k.keyOut?.to||''}`)],
+    ['MISSING KEYS',kr(keyMissing,k=>`Tag #${k.tag}`)],
+    ['LOCKBOXES',lbInventory.map(n=>{const k=keys.find(v=>v.lb&&String(v.lb.number)===String(n));return {address:`LB #${n}`,detail:k?`Checked out · ${k.address||`Tag #${k.tag}`}`:'Available',...(k?{targetType:'key',targetId:k.id}:{})}})],
+    ['AVAILABLE LB',lbAvailable.map(n=>({address:`LB #${n}`,detail:'Available'}))],
+    ['LB CHECKED OUT',kr(lbOut,k=>`LB #${k.lb.number}`)],
+    ['MISSING LB',kr(lbMissing,k=>`LB #${k.lb.number}`)]
+   ];
+   rows.innerHTML=`<div class="report-page"><div class="report-heading"><h1>Inventory</h1><p>Live key and lockbox inventory.</p></div><div class="monthly-event-grid">${inventoryGroups.map(([title,items])=>reportCategory(title,items)).join('')}</div></div>`;
  } else if(reportTab==='monthly'){
    const today=new Date();
    const iso=d=>d.toLocaleDateString('en-CA');
@@ -764,15 +766,23 @@ function renderReports(){
    ];
    const label=reportRange==='month'?today.toLocaleDateString('en-US',{month:'long',year:'numeric'}):reportRange==='year'?String(today.getFullYear()):reportRange==='all'?'All Time':`${short(reportFrom)} – ${short(reportTo)}`;
    const groupHTML=groups.map(([title,arr,dateKey])=>`<section class="report-detail monthly-event-group"><div class="monthly-event-title"><h2>${title}</h2><strong>${arr.length}</strong></div>${arr.length?`<div class="monthly-event-list">${arr.slice().sort((a,b)=>a.address.localeCompare(b.address)).map(x=>{const d=dateKey==='__gain'||dateKey==='__loss'?lifecycleState(x).date:get(x,dateKey);return `<button class="monthly-event-row" data-report-target="project" data-report-id="${x.id}"><span>${escapeHTML(x.address)}</span><span>${short(d)}</span></button>`}).join('')}</div>`:'<div class="empty">No records in this period.</div>'}</section>`).join('');
-   rows.innerHTML=`<div class="report-page"><div class="report-heading monthly-report-heading"><div><h1>${label}</h1><p>Activity is based on the actual workflow event date for each property.</p></div><div class="report-range-controls"><select id="reportRange"><option value="month" ${reportRange==='month'?'selected':''}>This Month</option><option value="year" ${reportRange==='year'?'selected':''}>This Year</option><option value="all" ${reportRange==='all'?'selected':''}>All Time</option><option value="custom" ${reportRange==='custom'?'selected':''}>Custom</option></select><input id="reportFrom" type="date" value="${reportFrom}" ${reportRange==='custom'?'':'disabled'}><span>to</span><input id="reportTo" type="date" value="${reportTo}" ${reportRange==='custom'?'':'disabled'}><button id="exportReportCsv" class="action-secondary">Export CSV</button></div></div><div class="report-metrics monthly-primary-metrics">${groups.map(([title,arr])=>reportMetric(title,arr.length,'')).join('')}</div><div class="monthly-event-grid">${groupHTML}</div></div>`;
+   rows.innerHTML=`<div class="report-page"><div class="report-heading monthly-report-heading"><div><h1>${label}</h1><p>Activity is based on the actual workflow event date for each property.</p></div><div class="report-range-controls"><select id="reportRange"><option value="month" ${reportRange==='month'?'selected':''}>This Month</option><option value="year" ${reportRange==='year'?'selected':''}>This Year</option><option value="all" ${reportRange==='all'?'selected':''}>All Time</option><option value="custom" ${reportRange==='custom'?'selected':''}>Custom</option></select><input id="reportFrom" type="date" value="${reportFrom}" ${reportRange==='custom'?'':'disabled'}><span>to</span><input id="reportTo" type="date" value="${reportTo}" ${reportRange==='custom'?'':'disabled'}><button id="exportReportCsv" class="action-secondary">Export CSV</button></div></div><div class="monthly-event-grid">${groupHTML}</div></div>`;
    $('#reportRange').onchange=e=>{reportRange=e.target.value;if(reportRange==='custom'){reportFrom=iso(new Date(today.getFullYear(),today.getMonth(),1));reportTo=iso(today)}renderReports()};
    $('#reportFrom').onchange=e=>{reportFrom=e.target.value;reportRange='custom';renderReports()};$('#reportTo').onchange=e=>{reportTo=e.target.value;reportRange='custom';renderReports()};
    $('#exportReportCsv').onclick=()=>exportTurnFlowCsv(reportFrom,reportTo);
  } else {
-   const turnTimes=data.filter(x=>x.type==='turn'&&get(x,'Keys Returned')&&get(x,'Mailed Disposition')).map(x=>diffDays(get(x,'Keys Returned'),get(x,'Mailed Disposition'))),listingTimes=data.filter(x=>x.type==='listing'&&get(x,'Listed')&&get(x,'Signed Lease Received')).map(x=>diffDays(get(x,'Listed'),get(x,'Signed Lease Received'))),totalTimes=data.filter(x=>x.type==='listing'&&x.sourceKeysReturned&&get(x,'Signed Lease Received')).map(x=>diffDays(x.sourceKeysReturned,get(x,'Signed Lease Received')));
-   const metrics=[['UPCOMING TURNS',upcoming.length,'upcoming'],['ACTIVE TURNS',activeTurns.length,'activeturns'],['LISTED',listed.length,'listed'],['PENDING',pending.length,'pending'],['OUT FOR SIGNING',signing.length,'signing'],['RENTED',rented.length,'rented'],['NEW PROPERTIES',newProperties.length,'newprops'],['LOST PROPERTIES',lostProperties.length,'lostprops'],['AVG TURN TIME',avg(turnTimes)+' days','avgturn'],['AVG LISTING TIME',avg(listingTimes)+' days','avglisting'],['AVG TOTAL TIME',avg(totalTimes)+' days','avgtotal']];
-   let detail='';if(reportDrill){let title='',arr=[];if(reportDrill==='upcoming'){title='Upcoming Turns';arr=upcoming.map(x=>({address:x.address,detail:`Scheduled Move Out ${short(get(x,'Scheduled Move Out'))||'—'}`,targetType:'project',targetId:x.id}))}if(reportDrill==='activeturns'){title='Active Turns';arr=activeTurns.map(x=>({address:x.address,detail:`${turnDays(x)} / 31 days`,targetType:'project',targetId:x.id}))}if(reportDrill==='listed'){title='Listed';arr=listed.map(x=>({address:x.address,detail:`${listingDays(x)} days`,targetType:'project',targetId:x.id}))}if(reportDrill==='pending'){title='Pending';arr=pending.map(x=>({address:x.address,detail:`${listingDays(x)} days`,targetType:'project',targetId:x.id}))}if(reportDrill==='signing'){title='Out for Signing';arr=signing.map(x=>({address:x.address,detail:`Lease sent ${short(get(x,'Lease Sent'))}`,targetType:'project',targetId:x.id}))}if(reportDrill==='rented'){title='Rented';arr=rented.map(x=>({address:x.address,detail:`Signed ${short(get(x,'Signed Lease Received'))}`,targetType:'project',targetId:x.id}))}if(reportDrill==='newprops'){title='New Properties';arr=newProperties.map(x=>({address:x.address,detail:`Management Start ${short(lifecycleState(x).date)||'—'}`,targetType:'project',targetId:x.id}))}if(reportDrill==='lostprops'){title='Lost Properties';arr=lostProperties.map(x=>({address:x.address,detail:`Termination ${short(lifecycleState(x).date)||'—'}`,targetType:'project',targetId:x.id}))}if(title)detail=reportRows(title,arr)}
-   rows.innerHTML=`<div class="report-page"><div class="report-heading"><h1>Live Operations</h1><p>Current TurnFlow workload and cycle-time metrics.</p></div><div class="report-metrics">${metrics.map(m=>reportMetric(...m)).join('')}</div>${detail}</div>`;
+   const projectItems=(arr,detail)=>arr.map(x=>({address:x.address,detail:detail(x),targetType:'project',targetId:x.id}));
+   const groups=[
+    ['UPCOMING TURNS',projectItems(upcoming,x=>`Expected Move Out · ${short(get(x,'Scheduled Move Out'))||'—'}`)],
+    ['ACTIVE TURNS',projectItems(activeTurns,x=>`${turnDays(x)} / 31 days`)],
+    ['LISTED',projectItems(listed,x=>`${listingDays(x)} days listed`)],
+    ['PENDING',projectItems(pending,x=>`${listingDays(x)} days listed`)],
+    ['OUT FOR SIGNING',projectItems(signing,x=>`Lease Sent · ${short(get(x,'Lease Sent'))||'—'}`)],
+    ['RENTED',projectItems(rented,x=>`Signed · ${short(get(x,'Signed Lease Received'))||'—'}`)],
+    ['NEW PROPERTIES',projectItems(newProperties,x=>`Management Start · ${short(lifecycleState(x).date)||'—'}`)],
+    ['LOST PROPERTIES',projectItems(lostProperties,x=>`Termination · ${short(lifecycleState(x).date)||'—'}`)]
+   ];
+   rows.innerHTML=`<div class="report-page"><div class="report-heading"><h1>Live Operations</h1><p>Current TurnFlow workload by property.</p></div><div class="monthly-event-grid">${groups.map(([title,items])=>reportCategory(title,items)).join('')}</div></div>`;
  }
  rows.querySelectorAll('[data-report-drill]').forEach(b=>b.onclick=()=>{const k=b.dataset.reportDrill;if(!k)return;reportDrill=reportDrill===k?'':k;renderReports()});
  rows.querySelectorAll('[data-report-target]').forEach(b=>b.onclick=()=>openReportRecord(b.dataset.reportTarget,b.dataset.reportId));
