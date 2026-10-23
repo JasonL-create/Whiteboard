@@ -847,3 +847,12 @@ body.auth-booting #appShell{visibility:hidden}
 .resource-chevron{font-size:19px;min-width:16px;line-height:1}
 .resource-section-count{font-size:12px;font-weight:700;opacity:.8;letter-spacing:0}
 .resource-section-toggle:focus-visible{outline:2px solid #fff;outline-offset:3px;border-radius:3px}
+
+/* v152: Resources menus must escape collapsed section boundaries. */
+.resource-section{overflow:visible;position:relative;isolation:auto}
+.resource-section:has(.resource-section-menu.open){z-index:100}
+.resource-section-menu-wrap{z-index:1}
+.resource-section-menu-wrap:has(.resource-section-menu.open){z-index:101}
+.resource-section-menu.open{z-index:102}
+.resource-section .resource-section-head{border-radius:13px 13px 0 0}
+.resource-section.resource-collapsed .resource-section-head{border-radius:13px}
