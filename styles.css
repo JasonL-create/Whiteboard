@@ -857,9 +857,12 @@ body.auth-booting #appShell{visibility:hidden}
 .resource-section .resource-section-head{border-radius:13px 13px 0 0}
 .resource-section.resource-collapsed .resource-section-head{border-radius:13px}
 
-/* v153: small process-type markers, matching the left-bottom sample. */
+/* v154: understated process accent, integrated into the card edge. */
 .row[data-project-type]{position:relative}
-.row[data-project-type]::before{content:"";position:absolute;left:3px;top:calc(50% + 12px);width:14px;height:11px;border-radius:1px;pointer-events:none;z-index:1}
-.row[data-project-type="turn"]::before{background:#2477c9}
-.row[data-project-type="listing"]::before{background:#13b84a}
-.row[data-project-type].open::before{top:76px}
+.row[data-project-type]::before{
+  content:"";position:absolute;left:0;top:22%;height:56%;width:4px;
+  border-radius:0 4px 4px 0;pointer-events:none;z-index:1;
+}
+.row[data-project-type="turn"]::before{background:#2b7ac4}
+.row[data-project-type="listing"]::before{background:#22a65a}
+.row[data-project-type].open::before{top:24px;height:44px}
